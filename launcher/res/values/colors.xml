@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Physeek's page colour: shown before the home screen draws, so HOME never flashes black. -->
+    <color name="page">#FFF5F5F7</color>
+</resources>

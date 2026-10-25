@@ -1,21 +1,55 @@
-# dumbtv home
+# Tomboy home (dumbtv home, Physeek style)
 
-A home screen for Fire TV that does one job: show your apps and your HDMI inputs.
+A home screen for Fire TV laid out like the Physeek app: a light grey page, a top
+bar, and coverflow shelves. It shows your HDMI inputs, and your apps one press away.
 
-<p align="center">
-  <img src="../docs/assets/screens/home.png" alt="dumbtv home: a clock, an Apps row and an Inputs row" width="720">
-</p>
-
-- **54 KB.** Plain Java and Android views. No AndroidX, Kotlin, Compose, Play
-  Services or any other library.
+- **Plain Java and Android views.** No AndroidX, Kotlin, Compose, Play Services or
+  any other library.
 - **No network.** There is no `INTERNET` permission, so Android will not let it
   open a connection.
 - **No permissions on Fire OS 7 and 8.** It declares three (usage access, task
   order, boot completed), each limited to Android 8.1 and earlier, for the Fire OS 6
   Keeper below. Check: `aapt2 dump permissions dumbtv-home.apk`.
 - **No ads, no recommended rows, no account, no analytics, no update checks.**
-- About 60–70 MB of memory with the home screen showing, about 37 MB while an app
-  plays (measured on a Fire TV Edition television with 1.4 GB of RAM).
+
+## The screen
+
+- **Top bar.** ☰ at the left opens a menu: Options, Fire TV settings, Amazon's home
+  screen. "Tomboy" sits in the middle (`Home.WORDMARK`). At the right, **Apps** opens
+  every app as a grid, and **Settings** opens Fire TV's settings.
+- **Inputs shelf.** A coverflow, as on Physeek's shelves: the middle cover full size,
+  the others stacked behind it and 20% smaller per step, all standing on a floor that
+  reflects them. The input's name and its state (Connected, Nothing connected) sit
+  under the middle cover. **View All ›** shows the shelf as a grid.
+- **Apps shelf.** The same, for apps. Off by default (Options › Apps shelf); it also
+  shows whenever there are no inputs to show, as on a Fire TV stick, so the home
+  screen is never empty.
+
+| Remote | Does |
+|---|---|
+| ◀ ▶ on a shelf | glide to the next cover |
+| ▲ ▼ | shelf to shelf; up from a shelf reaches View All, then the top bar |
+| OK | open the app, or switch to the input |
+| Hold OK, or ☰ Menu on a cover | Move, Rename, Hide, App info |
+| Move mode | ◀ ▶ moves the cover (and ▲ ▼ a line, on a grid), any other key drops it |
+| ☰ Menu elsewhere | the top bar's menu |
+| Back | from a grid: back to the shelves. On the shelves: the first cover |
+| On an input: Back | back to the home screen |
+| Hold HOME | Fire OS quick menu (Amazon's, unchanged) |
+
+**Options**, from ☰ › Options, cycles each setting with ◀ ▶ or OK:
+
+| Setting | Choices |
+|---|---|
+| Cover size | small, medium, large (also the number of grid columns: 5, 4, 3) |
+| App order | your order, or recently used, newest first |
+| Apps shelf | hidden (default), shown |
+| Inputs shelf | shown, hidden |
+| Open inputs with | Automatic, the TV's app, dumbtv home (see below) |
+
+Below them: which apps and inputs appear, a reset for order, names and hidden
+covers, and **Open Amazon's home screen**. Apps without a TV banner, like the
+Appstore, start hidden; tick them to add them.
 
 ## Install
 
@@ -33,43 +67,6 @@ APK by hand works, but HOME only switches over once `install.sh` (or
 `scripts/launcher.sh`) has set up the HOME hook described below.
 
 Undo: `./launcher/install.sh --undo` gives HOME back to Amazon's launcher.
-
-## Using it
-
-| Remote | Does |
-|---|---|
-| OK | open the app, or switch to the input |
-| Hold OK, or ☰ Menu | Move, Rename, Hide, App info |
-| Move mode | ◀ ▶ moves the tile, ▲ ▼ moves it a line in the grid, any other key drops it |
-| Up from the top row | Options and Settings |
-| Back on the home screen | jump to the first tile |
-| On an input: Back | back to the home screen |
-| On an input: ☰ Menu | show the input's name again |
-| Hold HOME | Fire OS quick menu (Amazon's, unchanged) |
-
-**Options** cycles each setting with ◀ ▶ or OK:
-
-| Setting | Choices |
-|---|---|
-| Accent | white, blue, cyan, green, amber, red, pink, violet |
-| Tiles | small, medium, large |
-| Layout | rows, or a grid that wraps to as many columns as fit |
-| App order | your order, or recently used: the apps row re-sorts on each return home, newest first. It counts apps opened from dumbtv home, plus apps opened any other way (voice, another app) on Fire OS 6, where the launcher already has usage access. Apps never opened keep your order after the rest |
-| App names | on focus, always, never |
-| Clock | system, 24-hour, 12-hour |
-| Memory meter | hidden, shown: free memory under the date, with a bar of what is in use; amber, with "running low", when Android reports low memory or under 15% is free. It only shows the numbers: it closes and frees nothing, and needs no permission |
-| Inputs row | shown, hidden |
-| Open inputs with | Automatic, the TV's app, dumbtv home (see below) |
-| Background | black, graphite, midnight, image, adaptive, adaptive tint |
-| Image dim, wallpaper rotation | for image backgrounds |
-
-Below them: Next wallpaper, which apps and inputs appear on the home screen, a
-reset for order, names and hidden tiles, and **Open Amazon's home screen**. Apps
-without a TV banner, like the Appstore, start hidden; tick them to add them.
-
-| Grid layout | Adaptive background | Adaptive tint |
-|---|---|---|
-| ![Grid layout](../docs/assets/screens/grid.png) | ![Adaptive background](../docs/assets/screens/adaptive.png) | ![Adaptive tint](../docs/assets/screens/tint.png) |
 
 ## HDMI inputs
 
@@ -94,30 +91,16 @@ Everything lives in one text file on the TV:
 ```
 
 ```ini
-# white blue cyan green amber red pink violet, or #RRGGBB
-accent=blue
 # small medium large
 tiles=medium
-# rows grid
-layout=rows
-# custom recent (recent = newest first; the history stays in the app's private storage)
+# custom recent
 order=custom
-# focus always never
-labels=focus
-# auto 24h 12h
-clock=auto
 # off on
-memory=off
+apps.shelf=off
 # on off
 inputs=on
 # auto tv home
 switch=auto
-# black graphite midnight image adaptive adaptive-tint
-background=black
-# 0 20 40 60 80, image backgrounds only
-dim=40
-# off visit hourly daily daytime (visit = every return to the home screen)
-rotate=off
 apps.order=com.amazon.firetv.youtube,org.videolan.vlc
 apps.hide=org.videolan.vlc
 apps.show=com.amazon.venezia
@@ -125,53 +108,14 @@ inputs.hide=com.droidlogic.tvinput/.services.AV1InputService/HW1
 name.com.droidlogic.tvinput/.services.Hdmi2InputService/HW6=PS5
 ```
 
-Comments go on their own line. Back it up with `adb pull`, restore it with
-`adb push`; changes apply the next time the home screen comes back.
-
-### Wallpapers
-
-No permission is needed: the launcher reads its own folder.
-
-- **One wallpaper:** push it as `wallpaper.jpg` (or `.jpeg`, `.png`, `.webp`) into
-  the folder above and set `background=image`.
-- **Several:** push them into a `wallpapers/` subfolder, with any names, and pick a
-  rotation. While that folder has images, `wallpaper.jpg` is ignored.
+Comments go on their own line; changes apply the next time the home screen comes
+back. On Fire OS 8 (Android 11) `/sdcard/Android/data/<app>` is closed to `adb`, so
+push the file to the launcher's media folder instead; it is applied once and
+remembered:
 
 ```sh
-adb shell mkdir -p /sdcard/Android/data/tv.dumbtv.home/files/wallpapers
-adb push *.jpg /sdcard/Android/data/tv.dumbtv.home/files/wallpapers/
-```
-
-### Fire OS 8: where adb can write
-
-On Fire OS 8 (Android 11) `/sdcard/Android/data/<app>` is closed to `adb`: listing,
-reading and pushing all fail with `Permission denied`, so none of the commands above
-work there. The launcher also looks in its own media folder, which `adb` can still
-write:
-
-```
-/sdcard/Android/media/tv.dumbtv.home/home.conf
-/sdcard/Android/media/tv.dumbtv.home/wallpapers/
-```
-
-```sh
-adb shell mkdir -p /sdcard/Android/media/tv.dumbtv.home/wallpapers
-adb push *.jpg /sdcard/Android/media/tv.dumbtv.home/wallpapers/
 adb push home.conf /sdcard/Android/media/tv.dumbtv.home/home.conf
 ```
-
-Wallpapers are read from both folders, in name order. A settings file pushed there
-is applied once, the next time the home screen comes back, and wins over what the TV
-has; what was applied is remembered, so the same push is not applied twice and a
-later change in Options is not overwritten by it.
-
-`rotate=daytime` matches wallpapers to the time of day by name: `morning` or `day`
-(06:00 to 13:00), `afternoon` or `evening` (13:00 to 20:00), `night` (the rest), as
-in `morning-coast.jpg`.
-
-`background=adaptive` takes a dark colour from the focused app's artwork.
-`background=adaptive-tint` keeps the wallpaper and adds a light wash of that
-colour; without a wallpaper it shows graphite.
 
 ## How HOME works on Fire OS
 
@@ -250,16 +194,19 @@ Delete both to stop.
 
 | File | What it is |
 |---|---|
-| `src/.../Home.java` | the home screen: clock, Apps row, Inputs row, tile menu, move mode |
-| `src/.../Tile.java` | one tile, drawn in a single `onDraw`: banner or icon, focus ring |
-| `src/.../Grid.java` | the grid layout |
-| `src/.../FocusColor.java` | the colour for the adaptive backgrounds |
+| `src/.../Home.java` | the home screen: top bar, shelves, View All page, menus, move mode |
+| `src/.../Shelf.java` | one coverflow shelf, ported from Physeek's carousel: spacing, stacking, crossfade, spring, reflection |
+| `src/.../Covers.java` | the face of a cover: banner, icon and name, or an input card |
+| `src/.../Tile.java` | one cover on the View All page, with its name and grey line |
+| `src/.../Grid.java` | the View All grid |
+| `src/.../IconButton.java` | the top bar's square buttons |
+| `src/.../InkMenu.java` | Physeek's dark pop-up menu |
 | `src/.../Catalog.java` | which apps and inputs exist, and their order |
 | `src/.../Item.java` | one app or input |
 | `src/.../Input.java` | the built-in input screen (`TvView`) |
 | `src/.../Config.java` | reads and writes `home.conf` |
 | `src/.../Options.java` | the settings screen |
-| `src/.../Ui.java` | shared colours, text and sizes |
+| `src/.../Ui.java` | Physeek's colours and type |
 | `src/.../Guard.java` | the Fire OS 7 and 8 HOME takeover |
 | `src/.../Keeper.java` | the Fire OS 6 HOME takeover |
 | `src/.../Recent.java` | when each app was last opened, for App order › Recently used |
@@ -268,7 +215,6 @@ Delete both to stop.
 | `install.sh` | download and checksum (or `--build`), install, HOME hook, `--undo` |
 | `version.env` | the version and the release's SHA-256, read by the three scripts |
 | `release-check.sh` | checks that the version, the built APK and the GitHub release agree |
-| `tests/FocusColorTest.java` | host-side test for `FocusColor`, run by CI |
 | `tests/RecentTest.java` | host-side test for the Recently used order, run by CI |
 
 ## Releasing

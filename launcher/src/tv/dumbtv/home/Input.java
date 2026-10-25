@@ -107,6 +107,7 @@ public final class Input extends Activity {
         getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
 
         FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(Color.BLACK); // the home screen behind is light now
         if (getSystemService(Context.TV_INPUT_SERVICE) != null) {
             view = new TvView(this);
             view.setCallback(watch);
@@ -114,7 +115,7 @@ public final class Input extends Activity {
             root.addView(view, new FrameLayout.LayoutParams(MATCH, MATCH));
         }
 
-        status = Ui.text(this, 22, Ui.MUTED, Ui.MEDIUM);
+        status = Ui.text(this, 22, Ui.DIM_TEXT, Ui.MEDIUM);
         status.setVisibility(View.GONE);
         root.addView(status, new FrameLayout.LayoutParams(WRAP, WRAP, Gravity.CENTER));
 

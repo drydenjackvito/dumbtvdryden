@@ -3,64 +3,72 @@ package tv.dumbtv.home;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.DashPathEffect;
+import android.graphics.Outline;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
-import android.graphics.drawable.Drawable;
-import android.media.tv.TvInputManager;
 import android.text.TextPaint;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.ViewOutlineProvider;
 
-/** A card drawn in one pass: banner, or icon plus name, or an input name; focus ring on top. */
+/**
+ * One cover on the View All page, as in Physeek's grid: the cover with a soft shadow, then the
+ * name and a grey line under it, left-aligned. Focus is an ink outline just outside the cover.
+ */
 final class Tile extends View {
-    private static final float FOCUS_SCALE = 1.08f;
+    private static final float FOCUS_SCALE = 1.06f;
 
     final Item item;
     final String kind;
     private final CharSequence title;
-    private final int cardW, cardH, labelH;
-    private final boolean labelAlways, labelOnFocus;
-    private final float radius, stroke;
-    private final RectF card = new RectF();
+    private final String line;
+    private final Covers covers;
+    private final int cardW, cardH, textH;
+    private final float radius, ringGap, ringW;
     private final Path clip = new Path();
-    private final Path arrow = new Path();
-    private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF box = new RectF();
     private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final TextPaint inner = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-    private final TextPaint under = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint arrow = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final TextPaint name = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+    private final TextPaint sub = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private boolean moving;
 
-    Tile(Context c, Item item, String kind, CharSequence title, int cardW, int cardH,
-            String labels, int accent) {
+    Tile(Context c, Item item, String kind, CharSequence title, String line, int cardW, Covers covers) {
         super(c);
         this.item = item;
         this.kind = kind;
         this.title = title;
+        this.line = line;
+        this.covers = covers;
         this.cardW = cardW;
-        this.cardH = cardH;
-        boolean app = Catalog.APPS.equals(kind);
-        labelH = app ? Ui.dp(c, 26) : 0;
-        labelAlways = "always".equals(labels);
-        labelOnFocus = "focus".equals(labels);
-        radius = Ui.dp(c, 10);
-        stroke = Ui.dp(c, 2.5f);
-
-        fill.setColor(app ? Ui.SURFACE : 0xFF17181B);
+        cardH = Math.round(cardW * 9f / 16f);
+        radius = Ui.dp(c, 12);
+        ringGap = Ui.dp(c, 3);
+        ringW = Ui.dp(c, 3);
+        name.setColor(Ui.INK);
+        name.setTypeface(Ui.MEDIUM);
+        name.setTextSize(Ui.dp(c, 16));
+        sub.setColor(Ui.MUTED);
+        sub.setTypeface(Ui.REGULAR);
+        sub.setTextSize(Ui.dp(c, 14));
+        textH = Math.round(Ui.dp(c, 10) + name.descent() - name.ascent() + Ui.dp(c, 2) + sub.descent() - sub.ascent());
         ring.setStyle(Paint.Style.STROKE);
-        ring.setStrokeWidth(stroke);
-        ring.setColor(accent);
-        dot.setColor(0xFF34C759);
-        inner.setColor(Ui.TEXT);
-        inner.setTypeface(Ui.MEDIUM);
-        inner.setTextAlign(Paint.Align.CENTER);
-        inner.setTextSize(Ui.dp(c, app ? 14 : 17));
-        under.setColor(Ui.TEXT);
-        under.setTypeface(Ui.MEDIUM);
-        under.setTextAlign(Paint.Align.CENTER);
-        under.setTextSize(Ui.dp(c, 13));
+        ring.setStrokeWidth(ringW);
+        ring.setColor(Ui.INK);
+        arrow.setColor(Ui.INK);
+        clip.addRoundRect(new RectF(0, 0, cardW, cardH), radius, radius, Path.Direction.CW);
+
+        // Physeek's --shadow, under the cover only, not the text below it.
+        setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View v, Outline o) {
+                o.setRoundRect(0, 0, Tile.this.cardW, Tile.this.cardH, radius);
+                o.setAlpha(0.3f);
+            }
+        });
+        setElevation(Ui.dp(c, 3));
 
         setFocusable(true);
         setClickable(true);
@@ -75,14 +83,11 @@ final class Tile extends View {
 
     @Override
     protected void onMeasure(int widthSpec, int heightSpec) {
-        setMeasuredDimension(cardW, cardH + labelH);
+        setMeasuredDimension(cardW, cardH + textH);
     }
 
     @Override
     protected void onSizeChanged(int w, int h, int oldW, int oldH) {
-        card.set(0, 0, cardW, cardH);
-        clip.reset();
-        clip.addRoundRect(card, radius, radius, Path.Direction.CW);
         setPivotX(cardW / 2f);
         setPivotY(cardH / 2f);
     }
@@ -92,69 +97,49 @@ final class Tile extends View {
         super.onFocusChanged(focused, direction, previous);
         animate().cancel();
         if (focused) {
-            animate().scaleX(FOCUS_SCALE).scaleY(FOCUS_SCALE).setDuration(110).start();
+            animate().scaleX(FOCUS_SCALE).scaleY(FOCUS_SCALE).translationZ(Ui.dp(getContext(), 8)).setDuration(120).start();
         } else {
             setScaleX(1f);
             setScaleY(1f);
+            setTranslationZ(0f);
         }
         invalidate();
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        Drawable banner = item.banner, icon = item.icon;
         canvas.save();
         canvas.clipPath(clip);
-        canvas.drawRect(card, fill);
-        if (banner != null) {
-            banner.setBounds(0, 0, cardW, cardH);
-            banner.draw(canvas);
-        } else if (icon != null) {
-            int size = cardH * 46 / 100;
-            int left = (cardW - size) / 2, top = cardH * 12 / 100;
-            icon.setBounds(left, top, left + size, top + size);
-            icon.draw(canvas);
-            drawLine(canvas, inner, cardW / 2f, cardH - cardH * 13 / 100f);
-        } else if (!Catalog.APPS.equals(kind)) {
-            drawLine(canvas, inner, cardW / 2f, cardH / 2f - (inner.ascent() + inner.descent()) / 2);
-        }
-        if (moving) canvas.drawColor(0x99000000);
+        covers.draw(canvas, item, kind, title, cardW, cardH);
+        if (moving) canvas.drawColor(0xB3F5F5F7);
         canvas.restore();
-
-        if (item.state == TvInputManager.INPUT_STATE_CONNECTED) {
-            float r = Ui.dp(getContext(), 3.5f);
-            canvas.drawCircle(cardW - r * 3, r * 3, r, dot);
-        }
         if (isFocused() || moving) {
-            float half = stroke / 2;
-            ring.setPathEffect(moving ? new DashPathEffect(new float[] {stroke * 3, stroke * 2}, 0) : null);
-            canvas.drawRoundRect(half, half, cardW - half, cardH - half, radius - half, radius - half, ring);
+            float out = ringGap + ringW / 2;
+            box.set(-out, -out, cardW + out, cardH + out);
+            ring.setPathEffect(moving ? new DashPathEffect(new float[] {ringW * 3, ringW * 2}, 0) : null);
+            canvas.drawRoundRect(box, radius + out, radius + out, ring);
         }
         if (moving) drawArrows(canvas);
-        boolean label = banner != null && (labelAlways || labelOnFocus && isFocused());
-        if (labelH > 0 && label) {
-            drawLine(canvas, under, cardW / 2f, cardH + labelH - Ui.dp(getContext(), 6));
+        float baseline = cardH + Ui.dp(getContext(), 10) - name.ascent();
+        CharSequence t = TextUtils.ellipsize(title, name, cardW, TextUtils.TruncateAt.END);
+        canvas.drawText(t, 0, t.length(), 0, baseline, name);
+        if (line != null) {
+            CharSequence l = TextUtils.ellipsize(line, sub, cardW, TextUtils.TruncateAt.END);
+            canvas.drawText(l, 0, l.length(), 0, baseline + name.descent() + Ui.dp(getContext(), 2) - sub.ascent(), sub);
         }
-    }
-
-    private void drawLine(Canvas canvas, TextPaint paint, float x, float baseline) {
-        float room = cardW - Ui.dp(getContext(), 16);
-        CharSequence s = TextUtils.ellipsize(title, paint, room, TextUtils.TruncateAt.END);
-        canvas.drawText(s, 0, s.length(), x, baseline, paint);
     }
 
     private void drawArrows(Canvas canvas) {
         float h = cardH / 6f, w = h * 0.7f, mid = cardH / 2f, pad = h * 0.8f;
-        inner.setStyle(Paint.Style.FILL);
-        arrow.reset();
-        arrow.moveTo(pad, mid);
-        arrow.lineTo(pad + w, mid - h / 2);
-        arrow.lineTo(pad + w, mid + h / 2);
-        arrow.close();
-        arrow.moveTo(cardW - pad, mid);
-        arrow.lineTo(cardW - pad - w, mid - h / 2);
-        arrow.lineTo(cardW - pad - w, mid + h / 2);
-        arrow.close();
-        canvas.drawPath(arrow, inner);
+        Path p = new Path();
+        p.moveTo(pad, mid);
+        p.lineTo(pad + w, mid - h / 2);
+        p.lineTo(pad + w, mid + h / 2);
+        p.close();
+        p.moveTo(cardW - pad, mid);
+        p.lineTo(cardW - pad - w, mid - h / 2);
+        p.lineTo(cardW - pad - w, mid + h / 2);
+        p.close();
+        canvas.drawPath(p, arrow);
     }
 }

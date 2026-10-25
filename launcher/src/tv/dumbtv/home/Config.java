@@ -1,7 +1,6 @@
 package tv.dumbtv.home;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -18,15 +17,10 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.TimeZone;
 
 /**
  * All settings live in one plain {@code key=value} file in the app's external files dir,
@@ -56,55 +50,24 @@ final class Config {
         }
     }
 
-    static final Choice ACCENT = new Choice("accent", "Accent color", "blue",
-            new String[] {"white", "blue", "cyan", "green", "amber", "red", "pink", "violet"},
-            new String[] {"White", "Blue", "Cyan", "Green", "Amber", "Red", "Pink", "Violet"});
-    static final Choice TILES = new Choice("tiles", "Tile size", "medium",
+    static final Choice TILES = new Choice("tiles", "Cover size", "medium",
             new String[] {"small", "medium", "large"},
             new String[] {"Small", "Medium", "Large"});
-    static final Choice LAYOUT = new Choice("layout", "Layout", "rows",
-            new String[] {"rows", "grid"},
-            new String[] {"Rows", "Grid"});
     static final Choice ORDER = new Choice("order", "App order", "custom",
             new String[] {"custom", "recent"},
             new String[] {"Your order", "Recently used"});
-    static final Choice LABELS = new Choice("labels", "App names", "focus",
-            new String[] {"focus", "always", "never"},
-            new String[] {"On focus", "Always", "Never"});
-    static final Choice CLOCK = new Choice("clock", "Clock", "auto",
-            new String[] {"auto", "24h", "12h"},
-            new String[] {"System", "24-hour", "12-hour"});
-    /** Free memory under the date, for TVs that are short of it. Shows only; frees nothing. */
-    static final Choice MEMORY = new Choice("memory", "Memory meter", "off",
+    /** The Apps button is always there; this adds a coverflow shelf of apps above Inputs. */
+    static final Choice APPS_SHELF = new Choice("apps.shelf", "Apps shelf", "off",
             new String[] {"off", "on"},
             new String[] {"Hidden", "Shown"});
-    static final Choice INPUTS = new Choice("inputs", "Inputs row", "on",
+    static final Choice INPUTS = new Choice("inputs", "Inputs shelf", "on",
             new String[] {"on", "off"},
             new String[] {"Shown", "Hidden"});
     static final Choice SWITCH = new Choice("switch", "Open inputs with", "auto",
             new String[] {"auto", "tv", "home"},
             new String[] {"Automatic", "The TV's app", "dumbtv home"});
-    static final Choice BACKGROUND = new Choice("background", "Background", "black",
-            new String[] {"black", "graphite", "midnight", "image", "adaptive", "adaptive-tint"},
-            new String[] {"Black", "Graphite", "Midnight", "Image file", "Adaptive solid", "Adaptive wallpaper tint"});
-    static final Choice DIM = new Choice("dim", "Image dim", "40",
-            new String[] {"0", "20", "40", "60", "80"},
-            new String[] {"0%", "20%", "40%", "60%", "80%"});
 
-    static final Choice ROTATE = new Choice("rotate", "Wallpaper rotation", "off",
-            new String[] {"off", "visit", "hourly", "daily", "daytime"},
-            new String[] {"Off", "Every return home", "Every hour", "Every day", "By time of day"});
-
-    static final Choice[] CHOICES = {ACCENT, TILES, LAYOUT, ORDER, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, ROTATE};
-
-    /** Folder of wallpapers, next to home.conf, that Background › Image file rotates through. */
-    static final String WALLPAPERS = "wallpapers";
-    private static final String OFFSET = "wallpaper.offset";
-
-    private static final int[] ACCENTS = {
-        0xFFFFFFFF, 0xFF3D8BFF, 0xFF2BC4E8, 0xFF34C759, 0xFFFFB340, 0xFFFF5147, 0xFFFF5C9D, 0xFFA07CFF,
-    };
-    private static final int[] BACKGROUNDS = {0xFF000000, 0xFF141518, 0xFF0B1220, 0xFF000000, 0xFF141518, 0xFF141518};
+    static final Choice[] CHOICES = {TILES, ORDER, APPS_SHELF, INPUTS, SWITCH};
 
     private static Config instance;
 
@@ -118,7 +81,6 @@ final class Config {
     private final Map<String, String> values = new LinkedHashMap<>();
     private long signature = Long.MIN_VALUE;
     private int version;
-    private long visits;
 
     static Config get(Context c) {
         if (instance == null) instance = new Config(c.getApplicationContext());
@@ -131,7 +93,7 @@ final class Config {
         file = new File(dir, FILE);
         // Fire OS 8 (Android 11) hides /sdcard/Android/data/<pkg> from adb, so nothing can be
         // pushed into the app's own folder. The app's media folder is still writable by adb,
-        // so it is used as a second source: wallpapers are read from it, and a settings file
+        // so it is used as a second source: a settings file
         // pushed there is merged in once.
         File[] media = c.getExternalMediaDirs();
         shared = (media != null && media.length > 0 && media[0] != null) ? media[0] : null;
@@ -274,134 +236,8 @@ final class Config {
         save();
     }
 
-    int accent() {
-        String v = values.get(ACCENT.key);
-        if (v != null && v.startsWith("#")) {
-            try {
-                return Color.parseColor(v) | 0xFF000000;
-            } catch (IllegalArgumentException ignored) {
-                // falls through to the named palette
-            }
-        }
-        return ACCENTS[Arrays.asList(ACCENT.values).indexOf(get(ACCENT))];
-    }
-
+    /** The page colour, also used by Guard's cover so HOME shows no flash of another colour. */
     int background() {
-        return BACKGROUNDS[Arrays.asList(BACKGROUND.values).indexOf(get(BACKGROUND))];
-    }
-
-    /** Counts returns to the home screen, for the "visit" rotation. */
-    void visited() {
-        visits++;
-    }
-
-    /** Steps the rotation forward by one, so the next wallpaper shows now. */
-    void nextWallpaper() {
-        set(OFFSET, String.valueOf(offset() + 1));
-    }
-
-    private int offset() {
-        try {
-            return Integer.parseInt(get(OFFSET, "0"));
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    /** 0 morning (6-13 h), 1 afternoon (13-20 h), 2 night. */
-    static int period() {
-        int h = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
-        return h >= 6 && h < 13 ? 0 : h >= 13 && h < 20 ? 1 : 2;
-    }
-
-    private static final String[][] PERIOD_WORDS = {
-        {"morning", "day"},
-        {"afternoon", "evening"},
-        {"night", "midnight"},
-    };
-
-    /**
-     * Files whose name carries a word for {@code period}; empty when others are tagged but not
-     * this one, null when no file is tagged at all (then the period just indexes the pool).
-     */
-    private static List<File> forPeriod(List<File> pool, int period) {
-        List<File> fit = new ArrayList<>();
-        boolean tagged = false;
-        for (File f : pool) {
-            // Whole words only, so "sunday.jpg" or "holiday.jpg" is not a morning picture.
-            List<String> words = Arrays.asList(f.getName().toLowerCase(Locale.ROOT).split("[^a-z]+"));
-            for (int p = 0; p < PERIOD_WORDS.length; p++) {
-                for (String w : PERIOD_WORDS[p]) {
-                    if (words.contains(w)) {
-                        tagged = true;
-                        if (p == period && !fit.contains(f)) fit.add(f);
-                    }
-                }
-            }
-        }
-        return tagged ? fit : null;
-    }
-
-    List<File> wallpapers() {
-        List<File> out = new ArrayList<>();
-        addPictures(new File(dir, WALLPAPERS), out);
-        if (shared != null) addPictures(new File(shared, WALLPAPERS), out);
-        Collections.sort(out, new Comparator<File>() {
-            @Override
-            public int compare(File a, File b) {
-                int byName = a.getName().compareToIgnoreCase(b.getName());
-                return byName != 0 ? byName : a.getPath().compareTo(b.getPath());
-            }
-        });
-        return out;
-    }
-
-    private static void addPictures(File folder, List<File> out) {
-        File[] files = folder.listFiles();
-        if (files == null) return;
-        for (File f : files) {
-            String n = f.getName().toLowerCase(Locale.ROOT);
-            if (f.isFile() && (n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".png")
-                    || n.endsWith(".webp"))) {
-                out.add(f);
-            }
-        }
-    }
-
-    File wallpaper() {
-        List<File> pool = wallpapers();
-        if (!pool.isEmpty()) {
-            long now = System.currentTimeMillis();
-            long step;
-            String mode = get(ROTATE);
-            if ("daytime".equals(mode)) {
-                int period = period();
-                List<File> fit = forPeriod(pool, period);
-                if (fit == null) {
-                    // Keep Options › Next wallpaper working here too.
-                    int n = pool.size();
-                    return pool.get(((period + offset()) % n + n) % n);
-                }
-                if (!fit.isEmpty()) pool = fit;
-                mode = "visit";
-            }
-            switch (mode) {
-                case "visit": step = visits; break;
-                case "hourly": step = now / 3_600_000L; break;
-                case "daily": step = (now + TimeZone.getDefault().getOffset(now)) / 86_400_000L; break;
-                default: step = 0;
-            }
-            int n = pool.size();
-            return pool.get((int) (((step + offset()) % n + n) % n));
-        }
-        for (String name : new String[] {"wallpaper.jpg", "wallpaper.jpeg", "wallpaper.png", "wallpaper.webp"}) {
-            File f = new File(dir, name);
-            if (f.isFile()) return f;
-            if (shared != null) {
-                File s = new File(shared, name);
-                if (s.isFile()) return s;
-            }
-        }
-        return null;
+        return 0xFFF5F5F7;
     }
 }
