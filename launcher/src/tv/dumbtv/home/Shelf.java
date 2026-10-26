@@ -43,6 +43,7 @@ final class Shelf extends View {
     private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG), arrow = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint shade = new Paint();
     private final RectF box = new RectF();
+    private final android.graphics.Bitmap contactShadow;
 
     private List<Item> items = new ArrayList<>();
     private List<CharSequence> titles = new ArrayList<>();
@@ -83,8 +84,8 @@ final class Shelf extends View {
         fade.setShader(new LinearGradient(0, coverH, 0, coverH + reflect, colors, stops, Shader.TileMode.CLAMP));
         flat.setColor(Ui.PAGE);
         solid.setColor(Ui.PAGE);
-        contact.setShader(new LinearGradient(0, coverH, 0, coverH + Ui.dp(c, 4),
-                0x21000000, 0x00000000, Shader.TileMode.CLAMP));
+        contactShadow = softShadow(Math.round(coverW), Ui.dp(c, 7));
+        contact.setFilterBitmap(true);
         shade.setColor(0xB3F5F5F7);
         ring.setStyle(Paint.Style.STROKE);
         ring.setStrokeWidth(ringW);
@@ -94,6 +95,26 @@ final class Shelf extends View {
         setFocusable(true);
         setClickable(true);
         setLongClickable(true);
+    }
+
+    /**
+     * The shadow where a panel meets the floor: darkest at the floor, fading down, and fading out
+     * toward both ends too, so it has no hard left or right edge. Made once, in software: Fire OS
+     * 6 cannot blur or compose gradients on the GPU.
+     */
+    private static android.graphics.Bitmap softShadow(int w, int h) {
+        int[] px = new int[w * h];
+        float ramp = Math.max(1, w * 0.12f);
+        for (int y = 0; y < h; y++) {
+            float down = 1 - (float) y / h;
+            down *= down;
+            for (int x = 0; x < w; x++) {
+                float t = Math.min(1, Math.min(x, w - 1 - x) / ramp);
+                float side = t * t * (3 - 2 * t);
+                px[y * w + x] = Math.round(0.16f * 255 * down * side) << 24;
+            }
+        }
+        return android.graphics.Bitmap.createBitmap(px, w, h, android.graphics.Bitmap.Config.ARGB_8888);
     }
 
     void setListener(Listener l) {
@@ -274,7 +295,7 @@ final class Shelf extends View {
         canvas.drawRect(-bleed, coverH, coverW + bleed, coverH + reflect, flat);
         canvas.drawRect(-bleed, coverH + reflect - 0.5f, coverW + bleed, coverH * 2, solid);
         contact.setAlpha(Math.round(near * 255));
-        canvas.drawRect(0, coverH, coverW, coverH + Ui.dp(getContext(), 4), contact);
+        canvas.drawBitmap(contactShadow, 0, coverH, contact);
 
         canvas.save();
         canvas.clipPath(clip);
