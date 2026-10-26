@@ -26,14 +26,13 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   both ends: on the TV, Settings › Display & Sounds › HDMI CEC Device Control; on a
   PS5, Settings › System › HDMI › Enable HDMI Device Link. Otherwise the TV's own
   name for the input is used, and Rename (hold OK) always wins.
-- **AirPlay.** The last panel of the inputs row; it always stays last. Fire TVs with
-  built-in "AirPlay & HomeKit" receive AirPlay on their own, and the panel opens
-  their AirPlay screen: the package set as `airplay.app=` in home.conf, else a
-  launchable app whose name mentions AirPlay or HomeKit, else an installed package
-  with "airplay" in its name. With none of those it opens the TV's settings. To make
-  it open Settings › Display & Sounds › Apple AirPlay & HomeKit directly, open that
-  screen on the TV, run `adb shell dumpsys window | grep mCurrentFocus`, and put the
-  `package/activity` it prints in home.conf as `airplay.app=`.
+- **AirPlay.** The last panel of the inputs row; it always stays last. It opens
+  Settings › Display & Sounds › Apple AirPlay & HomeKit, Apple's AirPlay screen on
+  Fire TVs with AirPlay built in (`Catalog.AIRPLAY_SCREEN`). Where that is missing it
+  looks for an app or package named for AirPlay or HomeKit, then falls back to the
+  TV's settings. `airplay.app=` in home.conf overrides it, as a package or as
+  `package/activity` (read one off the TV with
+  `adb shell dumpsys window | grep mCurrentFocus`).
 - **Live preview.** Above the panels, the selected input's picture fades in once it
   arrives, muted, after the selection rests for half a second. A device that is
   off shows nothing. For an app, its banner fades in. Options › Input preview turns

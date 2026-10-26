@@ -105,16 +105,23 @@ final class Catalog {
      * in its name that can be launched. Failing those it opens the TV's settings, where AirPlay
      * & HomeKit is set up. Package names are never assumed.
      */
+    /**
+     * Settings › Display & Sounds › Apple AirPlay & HomeKit on Fire TVs with AirPlay built in
+     * (Apple's receiver app), as read off a Fire OS 8 TV with dumpsys. Skipped where it is absent.
+     */
+    static final String AIRPLAY_SCREEN =
+            "com.apple.airplay.amazon.airplay/com.apple.airplay.amazon.airplay.MainActivity";
+
     static Item airplay(Context c, Config cfg, List<Item> apps) {
         PackageManager pm = c.getPackageManager();
-        String pinned = cfg.get("airplay.app", "");
+        String pinned = cfg.get("airplay.app", AIRPLAY_SCREEN);
         if (pinned.contains("/")) {
             // A screen, as package/activity: e.g. the "Apple AirPlay & HomeKit" settings page,
             // read off the TV with `adb shell dumpsys window | grep mCurrentFocus`.
             android.content.ComponentName screen = android.content.ComponentName.unflattenFromString(pinned);
             if (screen != null) {
                 Intent i = new Intent(Intent.ACTION_MAIN).setComponent(screen);
-                if (i.resolveActivity(pm) != null) return airplayItem(i, screen.getPackageName());
+                if (openable(pm, screen)) return airplayItem(i, screen.getPackageName());
             }
         } else if (!pinned.isEmpty()) {
             Intent i = launchFor(pm, pinned);
@@ -135,6 +142,16 @@ final class Catalog {
         Intent settings = new Intent(Intent.ACTION_MAIN).addCategory("android.intent.category.LEANBACK_SETTINGS");
         if (settings.resolveActivity(pm) == null) settings = new Intent(android.provider.Settings.ACTION_SETTINGS);
         return airplayItem(settings, null);
+    }
+
+    /** Installed, and open to other apps: a screen that is not exported cannot be started. */
+    private static boolean openable(PackageManager pm, android.content.ComponentName screen) {
+        try {
+            android.content.pm.ActivityInfo ai = pm.getActivityInfo(screen, 0);
+            return ai.exported && ai.enabled;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
     }
 
     private static Intent launchFor(PackageManager pm, String pkg) {
