@@ -121,7 +121,7 @@ final class Catalog {
             android.content.ComponentName screen = android.content.ComponentName.unflattenFromString(pinned);
             if (screen != null) {
                 Intent i = new Intent(Intent.ACTION_MAIN).setComponent(screen);
-                if (openable(pm, screen)) return airplayItem(i, screen.getPackageName());
+                if (openable(c, pm, screen)) return airplayItem(i, screen.getPackageName());
             }
         } else if (!pinned.isEmpty()) {
             Intent i = launchFor(pm, pinned);
@@ -144,11 +144,17 @@ final class Catalog {
         return airplayItem(settings, null);
     }
 
-    /** Installed, and open to other apps: a screen that is not exported cannot be started. */
-    private static boolean openable(PackageManager pm, android.content.ComponentName screen) {
+    /**
+     * Installed, and open to us: a screen that is not exported, or that requires a permission
+     * this app does not hold (Apple's AirPlay screen on Fire OS opens only from Amazon's
+     * Settings), cannot be started from here.
+     */
+    private static boolean openable(Context c, PackageManager pm, android.content.ComponentName screen) {
         try {
             android.content.pm.ActivityInfo ai = pm.getActivityInfo(screen, 0);
-            return ai.exported && ai.enabled;
+            if (!ai.exported || !ai.enabled) return false;
+            return ai.permission == null
+                    || pm.checkPermission(ai.permission, c.getPackageName()) == PackageManager.PERMISSION_GRANTED;
         } catch (PackageManager.NameNotFoundException e) {
             return false;
         }

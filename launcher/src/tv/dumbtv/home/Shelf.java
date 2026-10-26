@@ -33,7 +33,7 @@ final class Shelf extends View {
 
     private static final float OMEGA = 9f;
     /** Share of the art the reflection shows at the floor; it eases out to none. */
-    private static final float REFLECT_STRENGTH = 0.4f;
+    private static final float REFLECT_STRENGTH = 0.65f;
 
     final String kind;
     private final Covers covers;
@@ -259,7 +259,7 @@ final class Shelf extends View {
         Item it = items.get(k);
         CharSequence title = titles.get(k);
         // Reflections away from the selected panel are a little weaker, as on Physeek's shelves.
-        float near = Math.max(0.5f, 1 - 0.25f * Math.abs(k - pos));
+        float near = Math.max(0.75f, 1 - 0.15f * Math.abs(k - pos));
         canvas.save();
         canvas.translate(x - coverW / 2, floor - coverH);
 

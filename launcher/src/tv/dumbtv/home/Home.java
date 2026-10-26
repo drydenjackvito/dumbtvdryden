@@ -489,6 +489,9 @@ public final class Home extends Activity {
         List<Item> ap = visibleApps();
         // With no inputs to show, the apps shelf shows anyway, so home is never empty.
         boolean showApps = "on".equals(cfg.get(Config.APPS_SHELF)) || in.isEmpty();
+        // Inputs with something live on them jump the line, ahead of the rest (stable: each group
+        // keeps your order).
+        java.util.Collections.sort(in, (a, b) -> Boolean.compare(live(b), live(a)));
         // AirPlay always closes the inputs row.
         if ("on".equals(cfg.get(Config.INPUTS))) in.add(Catalog.airplay(this, cfg, allApps));
         fill(inputs, in);
@@ -526,6 +529,10 @@ public final class Home extends Activity {
             focusFirst(false);
         }
         placePreview();
+    }
+
+    private static boolean live(Item it) {
+        return it.state == TvInputManager.INPUT_STATE_CONNECTED;
     }
 
     private void fill(Shelf s, List<Item> items) {
@@ -804,11 +811,13 @@ public final class Home extends Activity {
 
     private void open(Item it, String kind) {
         if (Item.AIRPLAY.equals(it.id)) {
-            if (it.receiver == null) {
-                Toast.makeText(this, "AirPlay is ready whenever this TV is on. Its settings are under AirPlay & HomeKit.",
-                        Toast.LENGTH_LONG).show();
+            // AirPlay itself needs nothing opened: the TV receives whenever it is on. When its screen
+            // cannot be opened from here, the TV's settings are the next best place.
+            if (it.receiver == null || !launch(new Intent(it.intent), it.receiver, false)) {
+                Toast.makeText(this, "AirPlay is ready whenever this TV is on. Its settings: "
+                        + "Display & Sounds › Apple AirPlay & HomeKit.", Toast.LENGTH_LONG).show();
+                if (it.receiver != null) openSettings();
             }
-            launch(new Intent(it.intent), it.receiver);
             return;
         }
         if (Catalog.APPS.equals(kind)) {
@@ -825,12 +834,20 @@ public final class Home extends Activity {
     }
 
     private void launch(Intent i, String pkg) {
+        launch(i, pkg, true);
+    }
+
+    /** Starts {@code i}; false when Android refuses it. */
+    private boolean launch(Intent i, String pkg, boolean complain) {
         if (Guard.AMAZON.equals(pkg)) Guard.pause();
         try {
             startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED));
             if (pkg != null) Recent.opened(this, pkg);
+            return true;
         } catch (ActivityNotFoundException | SecurityException e) {
-            Toast.makeText(this, "Could not open that", Toast.LENGTH_SHORT).show();
+            android.util.Log.w("dumbtvtest", "could not open " + i, e);
+            if (complain) Toast.makeText(this, "Could not open that", Toast.LENGTH_SHORT).show();
+            return false;
         }
     }
 

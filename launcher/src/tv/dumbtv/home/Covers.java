@@ -23,6 +23,9 @@ final class Covers {
     private final Paint glyph = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path port = new Path(), cast = new Path();
     private final TextPaint name = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+    private final TextPaint label = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint idle = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final android.graphics.RectF bounds = new android.graphics.RectF();
     private final float pad, dotR, radius;
 
     Covers(Context c) {
@@ -65,6 +68,11 @@ final class Covers {
         cast.lineTo(7, 21);
         cast.close();
         dotR = Ui.dp(c, 4);
+        label.setColor(0xFFA3A3AB); // light grey
+        label.setTypeface(Ui.MEDIUM);
+        label.setTextAlign(Paint.Align.LEFT);
+        label.setLetterSpacing(-0.01f);
+        idle.setColor(0xFFE6E6EB); // an input with nothing live on it: greyer than the white card
         radius = Ui.dp(c, 12); // the corner the shelf and the grid clip covers to
     }
 
@@ -89,16 +97,25 @@ final class Covers {
             }
             return;
         }
-        // White cards on the light page need an edge to read as separate covers when stacked.
-        float g = h * 0.26f;
+        // Inputs: a white card when something is live on it (and AirPlay, always ready), grey when
+        // not. The icon, the same width for every panel, sits in the middle; the name, in light
+        // grey, at the bottom left.
+        boolean live = it.state == TvInputManager.INPUT_STATE_CONNECTED || Item.AIRPLAY.equals(it.id);
+        if (!live) canvas.drawRect(0, 0, w, h, idle);
+        Path mark = Item.AIRPLAY.equals(it.id) ? cast : port;
+        mark.computeBounds(bounds, true);
+        float size = h * 0.34f, scale = size / Math.max(bounds.width(), bounds.height());
         canvas.save();
-        canvas.translate((w - g) / 2, h * 0.17f);
-        canvas.scale(g / 24f, g / 24f);
+        canvas.translate(w / 2, h / 2);
+        canvas.scale(scale, scale);
+        canvas.translate(-bounds.centerX(), -bounds.centerY());
         glyph.setStrokeWidth(1.8f);
-        canvas.drawPath(Item.AIRPLAY.equals(it.id) ? cast : port, glyph);
+        canvas.drawPath(mark, glyph);
         canvas.restore();
-        name.setTextSize(h * 0.15f);
-        line(canvas, title, w / 2, h * 0.74f, w);
+        float inset = h * 0.09f;
+        label.setTextSize(h * 0.12f);
+        CharSequence t = TextUtils.ellipsize(title, label, w - 2 * inset, TextUtils.TruncateAt.END);
+        canvas.drawText(t, 0, t.length(), inset, h - inset, label);
         float e = Math.max(1f, h / 150f);
         edge.setStrokeWidth(e);
         canvas.drawRoundRect(e / 2, e / 2, w - e / 2, h - e / 2, radius - e / 2, radius - e / 2, edge);
