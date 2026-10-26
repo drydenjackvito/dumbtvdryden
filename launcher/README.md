@@ -30,9 +30,10 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   built-in "AirPlay & HomeKit" receive AirPlay on their own, and the panel opens
   their AirPlay screen: the package set as `airplay.app=` in home.conf, else a
   launchable app whose name mentions AirPlay or HomeKit, else an installed package
-  with "airplay" in its name. With none of those it opens the TV's settings. To pin
-  it, find the package with `adb shell pm list packages | grep -i airplay` and put
-  it in home.conf.
+  with "airplay" in its name. With none of those it opens the TV's settings. To make
+  it open Settings › Display & Sounds › Apple AirPlay & HomeKit directly, open that
+  screen on the TV, run `adb shell dumpsys window | grep mCurrentFocus`, and put the
+  `package/activity` it prints in home.conf as `airplay.app=`.
 - **Live preview.** Above the panels, the selected input's picture fades in once it
   arrives, muted, after the selection rests for half a second. A device that is
   off shows nothing. For an app, its banner fades in. Options › Input preview turns

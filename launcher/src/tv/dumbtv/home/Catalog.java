@@ -108,7 +108,15 @@ final class Catalog {
     static Item airplay(Context c, Config cfg, List<Item> apps) {
         PackageManager pm = c.getPackageManager();
         String pinned = cfg.get("airplay.app", "");
-        if (!pinned.isEmpty()) {
+        if (pinned.contains("/")) {
+            // A screen, as package/activity: e.g. the "Apple AirPlay & HomeKit" settings page,
+            // read off the TV with `adb shell dumpsys window | grep mCurrentFocus`.
+            android.content.ComponentName screen = android.content.ComponentName.unflattenFromString(pinned);
+            if (screen != null) {
+                Intent i = new Intent(Intent.ACTION_MAIN).setComponent(screen);
+                if (i.resolveActivity(pm) != null) return airplayItem(i, screen.getPackageName());
+            }
+        } else if (!pinned.isEmpty()) {
             Intent i = launchFor(pm, pinned);
             if (i != null) return airplayItem(i, pinned);
         }
