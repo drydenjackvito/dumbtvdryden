@@ -490,7 +490,7 @@ public final class Home extends Activity {
         // With no inputs to show, the apps shelf shows anyway, so home is never empty.
         boolean showApps = "on".equals(cfg.get(Config.APPS_SHELF)) || in.isEmpty();
         // AirPlay always closes the inputs row.
-        if ("on".equals(cfg.get(Config.INPUTS))) in.add(Catalog.airplay(allApps));
+        if ("on".equals(cfg.get(Config.INPUTS))) in.add(Catalog.airplay(this, cfg, allApps));
         fill(inputs, in);
         fill(apps, showApps ? ap : new ArrayList<>());
         for (Item it : ap) {
@@ -505,6 +505,18 @@ public final class Home extends Activity {
         if (lp.topMargin != overlap) {
             lp.topMargin = overlap;
             inputs.setLayoutParams(lp);
+        }
+        // The lowest panels' bottom edge sits one margin above the screen's bottom, like the top
+        // bar below its top; their reflection fades out past the screen's edge.
+        Shelf lowest = inputsOn ? inputs : apps;
+        int drop = -Math.max(0, Math.round(dp(panelHeight()) * 0.7f) - gutter());
+        for (Shelf sh : new Shelf[] {apps, inputs}) {
+            LinearLayout.LayoutParams p = (LinearLayout.LayoutParams) sh.getLayoutParams();
+            int want = sh == lowest ? drop : 0;
+            if (p.bottomMargin != want) {
+                p.bottomMargin = want;
+                sh.setLayoutParams(p);
+            }
         }
         empty.setVisibility(appsOn || inputsOn ? View.GONE : View.VISIBLE);
         wireFocus();
@@ -793,7 +805,8 @@ public final class Home extends Activity {
     private void open(Item it, String kind) {
         if (Item.AIRPLAY.equals(it.id)) {
             if (it.receiver == null) {
-                Toast.makeText(this, "Fire TV needs an AirPlay app. Opening the Appstore.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "AirPlay is ready whenever this TV is on. Its settings are under AirPlay & HomeKit.",
+                        Toast.LENGTH_LONG).show();
             }
             launch(new Intent(it.intent), it.receiver);
             return;

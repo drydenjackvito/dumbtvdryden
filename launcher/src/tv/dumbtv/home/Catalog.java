@@ -98,21 +98,46 @@ final class Catalog {
     }
 
     /**
-     * The AirPlay panel. Fire TV has no AirPlay of its own, so it opens an installed receiver app,
-     * found by name (AirScreen, AirReceiver and the like), or Amazon's Appstore searching for one.
+     * The AirPlay panel. Fire TVs with built-in "AirPlay & HomeKit" receive AirPlay by
+     * themselves; the panel opens their AirPlay screen. It looks, in order, for: the package
+     * named by {@code airplay.app} in home.conf; a launchable app whose name mentions AirPlay or
+     * HomeKit (built in, or a receiver such as AirScreen); any installed package with "airplay"
+     * in its name that can be launched. Failing those it opens the TV's settings, where AirPlay
+     * & HomeKit is set up. Package names are never assumed.
      */
-    static Item airplay(List<Item> apps) {
+    static Item airplay(Context c, Config cfg, List<Item> apps) {
+        PackageManager pm = c.getPackageManager();
+        String pinned = cfg.get("airplay.app", "");
+        if (!pinned.isEmpty()) {
+            Intent i = launchFor(pm, pinned);
+            if (i != null) return airplayItem(i, pinned);
+        }
         for (Item app : apps) {
             String name = app.label.toString().toLowerCase(java.util.Locale.ROOT);
-            if (name.contains("airplay") || name.contains("airscreen") || name.contains("airreceiver")
-                    || name.contains("air receiver")) {
-                Item it = new Item(Item.AIRPLAY, "AirPlay", app.intent);
-                it.receiver = app.id;
-                return it;
+            if (name.contains("airplay") || name.contains("homekit") || name.contains("airscreen")
+                    || name.contains("airreceiver") || name.contains("air receiver")) {
+                return airplayItem(app.intent, app.id);
             }
         }
-        return new Item(Item.AIRPLAY, "AirPlay",
-                new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("amzn://apps/android?s=airplay%20receiver")));
+        for (android.content.pm.ApplicationInfo ai : pm.getInstalledApplications(0)) {
+            if (!ai.packageName.toLowerCase(java.util.Locale.ROOT).contains("airplay")) continue;
+            Intent i = launchFor(pm, ai.packageName);
+            if (i != null) return airplayItem(i, ai.packageName);
+        }
+        Intent settings = new Intent(Intent.ACTION_MAIN).addCategory("android.intent.category.LEANBACK_SETTINGS");
+        if (settings.resolveActivity(pm) == null) settings = new Intent(android.provider.Settings.ACTION_SETTINGS);
+        return airplayItem(settings, null);
+    }
+
+    private static Intent launchFor(PackageManager pm, String pkg) {
+        Intent i = pm.getLeanbackLaunchIntentForPackage(pkg);
+        return i != null ? i : pm.getLaunchIntentForPackage(pkg);
+    }
+
+    private static Item airplayItem(Intent open, String pkg) {
+        Item it = new Item(Item.AIRPLAY, "AirPlay", open);
+        it.receiver = pkg;
+        return it;
     }
 
     static CharSequence label(Config cfg, Item it) {

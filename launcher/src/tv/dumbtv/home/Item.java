@@ -15,7 +15,7 @@ final class Item {
     ActivityInfo info;
     boolean leanback;
     int state = -1;
-    /** For the AirPlay panel: the receiver app's package, or null when none is installed. */
+    /** For the AirPlay panel: the package it opens, or null when it opens the TV's settings. */
     String receiver;
     volatile boolean artRequested;
     volatile Drawable banner, icon;

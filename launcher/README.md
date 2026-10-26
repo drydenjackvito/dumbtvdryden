@@ -18,18 +18,21 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   and **Settings** (Fire TV's settings) at the left; the clock in light grey at the
   right. ☰ opens a menu: Options and Amazon's home screen. The margin round the
   screen is the same at the sides as at the top.
-- **Panels.** A row of equal panels near the bottom of the screen that slides as you
-  move, the selected one in the middle, each standing on a reflective floor. No
+- **Panels.** A row of equal panels at the bottom, one margin up from the screen
+  edge with the reflection fading past it, that slides as you move, the selected one in the middle, each standing on a reflective floor. No
   titles or text around them.
 - **Input names.** An input is named after the device on it when the device says
   who it is over HDMI-CEC (a PS5 shows as "PS5", not "HDMI 2"). That needs CEC on
   both ends: on the TV, Settings › Display & Sounds › HDMI CEC Device Control; on a
   PS5, Settings › System › HDMI › Enable HDMI Device Link. Otherwise the TV's own
   name for the input is used, and Rename (hold OK) always wins.
-- **AirPlay.** The last panel of the inputs row. Fire TV has no AirPlay of its own,
-  so it opens an installed AirPlay receiver app, found by its name (AirScreen,
-  AirReceiver, or anything with "AirPlay" in its name), or Amazon's Appstore
-  searching for one when there is none. It always stays last.
+- **AirPlay.** The last panel of the inputs row; it always stays last. Fire TVs with
+  built-in "AirPlay & HomeKit" receive AirPlay on their own, and the panel opens
+  their AirPlay screen: the package set as `airplay.app=` in home.conf, else a
+  launchable app whose name mentions AirPlay or HomeKit, else an installed package
+  with "airplay" in its name. With none of those it opens the TV's settings. To pin
+  it, find the package with `adb shell pm list packages | grep -i airplay` and put
+  it in home.conf.
 - **Live preview.** Above the panels, the selected input's picture fades in once it
   arrives, muted, after the selection rests for half a second. A device that is
   off shows nothing. For an app, its banner fades in. Options › Input preview turns
