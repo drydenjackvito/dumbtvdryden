@@ -667,10 +667,9 @@ public final class Home extends Activity {
 
     private void mainMenu() {
         InkMenu.show(this, menuBtn,
-                new String[] {"Options", "Fire TV settings", null, "Amazon's home screen"},
+                new String[] {"Options", null, "Amazon's home screen"},
                 new Runnable[] {
                     () -> startActivity(new Intent(this, Options.class)),
-                    this::openSettings,
                     null,
                     () -> Guard.amazon(this),
                 });

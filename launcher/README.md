@@ -14,8 +14,7 @@ bar, and coverflow shelves. It shows your HDMI inputs, and your apps one press a
 
 ## The screen
 
-- **Top bar.** ☰ at the left opens a menu: Options, Fire TV settings, Amazon's home
-  screen. "Tomboy" sits in the middle (`Home.WORDMARK`). At the right, **Apps** opens
+- **Top bar.** ☰ at the left opens a menu: Options and Amazon's home screen. "Tomboy" sits in the middle (`Home.WORDMARK`). At the right, **Apps** opens
   every app as a grid, and **Settings** opens Fire TV's settings.
 - **Inputs shelf.** A coverflow, as on Physeek's shelves: the middle cover full size,
   the others stacked behind it and 20% smaller per step, all standing on a floor that
