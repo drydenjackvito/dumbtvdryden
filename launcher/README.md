@@ -85,6 +85,23 @@ APK by hand works, but HOME only switches over once `install.sh` (or
 
 Undo: `./launcher/install.sh --undo` gives HOME back to Amazon's launcher.
 
+### Without build tools (Windows, Git Bash)
+
+GitHub Actions builds the APK on every push to the fork. With the repository secrets
+`DUMBTV_KEYSTORE` (the keystore, base64) and `DUMBTV_KEYPASS` set, each build is
+signed with the same key and installs over the last one.
+
+1. GitHub › Actions › the latest run › **Artifacts** › `dumbtv-home-apk`; unzip it.
+2. In Git Bash, from the repository:
+
+```sh
+adb connect <tv-ip>:5555
+adb uninstall tv.dumbtv.home        # only the first time, to replace a release install
+./launcher/install.sh --apk ~/Downloads/dumbtv-home-apk/dumbtv-home.apk
+```
+
+`--apk` needs only adb: it installs the file and sets up the HOME takeover.
+
 ## HDMI inputs
 
 **Options › Open inputs with** decides what an input tile does:

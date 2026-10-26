@@ -2,9 +2,16 @@
 # Installs dumbtv home on the TV and gives it the HOME button.
 #   ./launcher/install.sh            download the release APK (checksum-verified), install, take over HOME
 #   ./launcher/install.sh --build    build from source instead (needs a JDK and the Android SDK)
+#   ./launcher/install.sh --apk FILE install an APK you already have, e.g. one built by GitHub
+#                                    Actions (needs only adb; works from Git Bash on Windows)
 #   ./launcher/install.sh --undo     hand HOME back to Amazon's launcher
 # Pick the device with ADB_SERIAL when more than one is connected.
 set -euo pipefail
+# Git Bash on Windows rewrites arguments that look like Unix paths before adb.exe sees them;
+# every adb argument here is meant for the TV, so leave them alone.
+export MSYS_NO_PATHCONV=1
+apk_arg=${2:-}
+[[ -n $apk_arg && $apk_arg != /* && ! $apk_arg =~ ^[A-Za-z]: ]] && apk_arg=$PWD/$apk_arg
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 # shellcheck disable=SC1091
@@ -17,7 +24,8 @@ OLD_GUARD=com.spocky.projengmenu/com.spocky.projengmenu.services.ProjectivyAcces
 ADB=${ADB:-adb}
 
 adb_() { "$ADB" ${ADB_SERIAL:+-s "$ADB_SERIAL"} "$@"; }
-sh_() { adb_ shell "$@" </dev/null; }
+# Windows adb can end lines with \r; drop it so comparisons see the plain value.
+sh_() { adb_ shell "$@" </dev/null | tr -d '\r'; }
 installed() { sh_ pm path "$1" 2>/dev/null | grep -q '^package:'; }
 # shellcheck disable=SC1091
 source ../scripts/home.sh
@@ -27,11 +35,13 @@ case ${1:-} in
   "") ;;
   --build) mode=build ;;
   --undo) mode=undo ;;
-  *) echo "usage: $0 [--build | --undo]" >&2; exit 2 ;;
+  --apk) mode=file
+         [[ -f $apk_arg ]] || { echo "error: --apk needs an APK file (got '${apk_arg}')" >&2; exit 2; } ;;
+  *) echo "usage: $0 [--build | --apk FILE | --undo]" >&2; exit 2 ;;
 esac
 
 command -v "$ADB" >/dev/null || { echo "error: adb not found — install Android platform-tools" >&2; exit 1; }
-state=$(adb_ get-state 2>/dev/null || true)
+state=$(adb_ get-state 2>/dev/null | tr -d '\r' || true)
 [[ $state == device ]] || { echo "error: no TV connected (adb connect <tv-ip>:5555; set ADB_SERIAL if several)" >&2; exit 1; }
 
 dev_sdk=$(sh_ getprop ro.build.version.sdk | tr -d '\r')
@@ -93,11 +103,17 @@ build_apk() {
 
 # adb ends its output with a blank line, so take the line that carries the result.
 install_apk() {
-  out=$(adb_ install -r "$APK" 2>&1 | grep -m1 -E 'Success|Failure|failed' || true)
+  local path=$APK
+  # adb.exe takes Windows paths; Git Bash gives /c/... ones.
+  if command -v cygpath >/dev/null 2>&1; then path=$(cygpath -w "$APK"); fi
+  out=$(adb_ install -r "$path" 2>&1 | grep -m1 -E 'Success|Failure|failed' || true)
 }
 
 if [[ $mode == build ]]; then
   build_apk
+elif [[ $mode == file ]]; then
+  APK=$apk_arg
+  echo "installing $APK"
 else
   mkdir -p build
   APK=build/dumbtv-home-$VERSION.apk

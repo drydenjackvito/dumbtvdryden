@@ -3,6 +3,7 @@ name: validate
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   catalog:
@@ -25,8 +26,30 @@ jobs:
           java-version: "17"
       - name: sdk
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-25" "build-tools;34.0.0" >/dev/null
+      # With the repository secrets DUMBTV_KEYSTORE (the keystore, base64) and DUMBTV_KEYPASS
+      # set, every build is signed with the same key, so each one installs over the last.
+      # Without them build.sh makes a throwaway key.
+      - name: signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.DUMBTV_KEYSTORE }}
+          KEYPASS: ${{ secrets.DUMBTV_KEYPASS }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/home.keystore"
+            echo "DUMBTV_KEYSTORE=$RUNNER_TEMP/home.keystore" >> "$GITHUB_ENV"
+            echo "DUMBTV_KEYPASS=$KEYPASS" >> "$GITHUB_ENV"
+            echo "signing with the repository key"
+          else
+            echo "no DUMBTV_KEYSTORE secret: signing with a throwaway key"
+          fi
       - name: build (sdk 25 for fire os 6-8; fails on any android.* API that Android 7.1 lacks)
         run: ./launcher/build.sh
+      - name: keep the apk (Actions › this run › Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dumbtv-home-apk
+          path: launcher/build/dumbtv-home.apk
+          retention-days: 30
       - name: host-side launcher tests
         run: |
           jar="$ANDROID_HOME/platforms/android-25/android.jar"
