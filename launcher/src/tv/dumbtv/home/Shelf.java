@@ -67,7 +67,7 @@ final class Shelf extends View {
         reflect = height * 0.7f;
         radius = Ui.dp(c, 12);
         ringGap = Ui.dp(c, 3);
-        ringW = Ui.dp(c, 3);
+        ringW = Ui.dp(c, 1.75f);
         top = ringGap + ringW + Ui.dp(c, 4);
         clip.addRoundRect(new RectF(0, 0, coverW, coverH), radius, radius, Path.Direction.CW);
 

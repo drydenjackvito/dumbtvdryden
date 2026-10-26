@@ -139,19 +139,39 @@ public final class Guard extends AccessibilityService {
         if (e.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         CharSequence pkg = e.getPackageName(), cls = e.getClassName();
         if (pkg == null) return;
-        if (!AMAZON.contentEquals(pkg)) {
+        boolean replace = replaced(pkg, cls);
+        if (!AMAZON.contentEquals(pkg) && !replace) {
             if ("com.android.systemui".contentEquals(pkg) || "android".contentEquals(pkg)) return;
             onAmazonHome = false;
             paused = false;
             if (!getPackageName().contentEquals(pkg)) arrived(this);
             return;
         }
-        onAmazonHome = cls != null && AMAZON_HOME.contentEquals(cls);
+        onAmazonHome = replace || cls != null && AMAZON_HOME.contentEquals(cls);
         if (paused || !onAmazonHome) return;
         long now = SystemClock.uptimeMillis();
         if (now - lastLaunch < REPEAT_MS) return;
         lastLaunch = now;
         launchWhenCovered();
+    }
+
+    /**
+     * Other Amazon screens to replace with ours, like its home: {@code guard.replace} in home.conf,
+     * comma-separated, each a window's {@code package/class} (as dumpsys window prints it) or a
+     * bare package for all of its windows. Used for the screen the remote's Inputs button opens.
+     */
+    private boolean replaced(CharSequence pkg, CharSequence cls) {
+        for (String want : Config.get(this).list("guard.replace")) {
+            int slash = want.indexOf('/');
+            if (slash < 0) {
+                if (want.contentEquals(pkg)) return true;
+                continue;
+            }
+            String p = want.substring(0, slash), c = want.substring(slash + 1);
+            if (c.startsWith(".")) c = p + c;
+            if (p.contentEquals(pkg) && cls != null && c.contentEquals(cls)) return true;
+        }
+        return false;
     }
 
     /**

@@ -33,6 +33,10 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   TV's settings. `airplay.app=` in home.conf overrides it, as a package or as
   `package/activity` (read one off the TV with
   `adb shell dumpsys window | grep mCurrentFocus`).
+- **Inputs button.** Fire OS handles the remote's Inputs button itself, like HOME. List
+  the window it opens in home.conf as `guard.replace=package/class` (read it off the
+  TV with `adb shell dumpsys window | grep mCurrentFocus` while that screen shows), and
+  Guard replaces it with this home screen, as it does Amazon's home.
 - **Live preview.** Above the panels, the selected input's picture fades in once it
   arrives, muted, after the selection rests for half a second. A device that is
   off shows nothing. For an app, its banner fades in. Options › Input preview turns

@@ -46,7 +46,7 @@ final class Tile extends View {
         cardH = Math.round(cardW * 9f / 16f);
         radius = Ui.dp(c, 12);
         ringGap = Ui.dp(c, 3);
-        ringW = Ui.dp(c, 3);
+        ringW = Ui.dp(c, 1.75f);
         name.setColor(Ui.INK);
         name.setTypeface(Ui.MEDIUM);
         name.setTextSize(Ui.dp(c, 16));
