@@ -217,6 +217,7 @@ final class Shelf extends View {
     private void swap(int by) {
         int to = target + by;
         if (to < 0 || to >= items.size()) return;
+        if (Item.AIRPLAY.equals(items.get(to).id) || Item.AIRPLAY.equals(items.get(target).id)) return; // stays last
         Collections.swap(items, target, to);
         Collections.swap(titles, target, to);
         jumpTo(to);

@@ -14,9 +14,10 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
 
 ## The screen
 
-- **Top bar.** ☰, "Tomboy" (`Home.WORDMARK`) and the clock in light grey at the
-  left. ☰ opens a menu: Options and Amazon's home screen. At the right, **Apps**
-  opens every app as a grid, and **Settings** opens Fire TV's settings.
+- **Top bar.** ☰, "Tomboy" (`Home.WORDMARK`), then **Apps** (every app as a grid)
+  and **Settings** (Fire TV's settings) at the left; the clock in light grey at the
+  right. ☰ opens a menu: Options and Amazon's home screen. The margin round the
+  screen is the same at the sides as at the top.
 - **Panels.** A row of equal panels near the bottom of the screen that slides as you
   move, the selected one in the middle, each standing on a reflective floor. No
   titles or text around them.
@@ -25,6 +26,10 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   both ends: on the TV, Settings › Display & Sounds › HDMI CEC Device Control; on a
   PS5, Settings › System › HDMI › Enable HDMI Device Link. Otherwise the TV's own
   name for the input is used, and Rename (hold OK) always wins.
+- **AirPlay.** The last panel of the inputs row. Fire TV has no AirPlay of its own,
+  so it opens an installed AirPlay receiver app, found by its name (AirScreen,
+  AirReceiver, or anything with "AirPlay" in its name), or Amazon's Appstore
+  searching for one when there is none. It always stays last.
 - **Live preview.** Above the panels, the selected input's picture fades in once it
   arrives, muted, after the selection rests for half a second. A device that is
   off shows nothing. For an app, its banner fades in. Options › Input preview turns

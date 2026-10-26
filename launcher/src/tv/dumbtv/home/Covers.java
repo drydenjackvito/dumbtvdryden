@@ -21,7 +21,7 @@ final class Covers {
     private final Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint glyph = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Path port = new Path();
+    private final Path port = new Path(), cast = new Path();
     private final TextPaint name = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final float pad, dotR, radius;
 
@@ -49,6 +49,21 @@ final class Covers {
         port.close();
         port.moveTo(7, 11.5f);
         port.lineTo(17, 11.5f);
+        // AirPlay: a screen with a triangle rising into its bottom edge.
+        cast.moveTo(7, 17);
+        cast.lineTo(4, 17);
+        cast.quadTo(2, 17, 2, 15);
+        cast.lineTo(2, 5);
+        cast.quadTo(2, 3, 4, 3);
+        cast.lineTo(20, 3);
+        cast.quadTo(22, 3, 22, 5);
+        cast.lineTo(22, 15);
+        cast.quadTo(22, 17, 20, 17);
+        cast.lineTo(17, 17);
+        cast.moveTo(12, 14);
+        cast.lineTo(17, 21);
+        cast.lineTo(7, 21);
+        cast.close();
         dotR = Ui.dp(c, 4);
         radius = Ui.dp(c, 12); // the corner the shelf and the grid clip covers to
     }
@@ -80,7 +95,7 @@ final class Covers {
         canvas.translate((w - g) / 2, h * 0.17f);
         canvas.scale(g / 24f, g / 24f);
         glyph.setStrokeWidth(1.8f);
-        canvas.drawPath(port, glyph);
+        canvas.drawPath(Item.AIRPLAY.equals(it.id) ? cast : port, glyph);
         canvas.restore();
         name.setTextSize(h * 0.15f);
         line(canvas, title, w / 2, h * 0.74f, w);

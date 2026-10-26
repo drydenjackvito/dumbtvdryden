@@ -97,6 +97,24 @@ final class Catalog {
         return out;
     }
 
+    /**
+     * The AirPlay panel. Fire TV has no AirPlay of its own, so it opens an installed receiver app,
+     * found by name (AirScreen, AirReceiver and the like), or Amazon's Appstore searching for one.
+     */
+    static Item airplay(List<Item> apps) {
+        for (Item app : apps) {
+            String name = app.label.toString().toLowerCase(java.util.Locale.ROOT);
+            if (name.contains("airplay") || name.contains("airscreen") || name.contains("airreceiver")
+                    || name.contains("air receiver")) {
+                Item it = new Item(Item.AIRPLAY, "AirPlay", app.intent);
+                it.receiver = app.id;
+                return it;
+            }
+        }
+        return new Item(Item.AIRPLAY, "AirPlay",
+                new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("amzn://apps/android?s=airplay%20receiver")));
+    }
+
     static CharSequence label(Config cfg, Item it) {
         return cfg.get("name." + it.id, it.label.toString());
     }

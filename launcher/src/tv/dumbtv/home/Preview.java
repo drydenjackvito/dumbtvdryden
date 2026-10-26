@@ -96,7 +96,7 @@ final class Preview extends FrameLayout {
                 return;
             }
             art.setVisibility(GONE);
-            if (!live || tv == null || it.intent.getData() == null) {
+            if (!live || tv == null || Item.AIRPLAY.equals(it.id) || it.intent.getData() == null) {
                 release();
                 return;
             }

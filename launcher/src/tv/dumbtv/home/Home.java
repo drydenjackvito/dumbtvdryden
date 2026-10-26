@@ -38,8 +38,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
- * The home screen: a top bar (menu, the wordmark and the clock at the left, Apps and Settings at
- * the right), a live preview of the selected input, and a row of sliding panels near the bottom.
+ * The home screen: a top bar (menu, the wordmark, Apps and Settings at the left, the clock at the
+ * right), a live preview of the selected input, and a row of sliding panels near the bottom.
  * Apps opens a grid of every app.
  */
 public final class Home extends Activity {
@@ -116,6 +116,7 @@ public final class Home extends Activity {
     private final Shelf.Listener shelfListener = new Shelf.Listener() {
         @Override
         public void moved(Shelf shelf, List<String> ids) {
+            ids.remove(Item.AIRPLAY);
             Catalog.saveOrder(cfg, shelf.kind, ids);
             applied = cfg.version();
         }
@@ -304,7 +305,7 @@ public final class Home extends Activity {
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setClipChildren(false);
         bar.setClipToPadding(false);
-        bar.setPadding(gutter(), dp(28), gutter(), dp(10));
+        bar.setPadding(gutter(), gutter(), gutter(), dp(10));
         menuBtn = new IconButton(this, IconButton.MENU, "Menu");
         menuBtn.setOnClickListener(v -> mainMenu());
         bar.addView(menuBtn);
@@ -313,20 +314,20 @@ public final class Home extends Activity {
         LinearLayout.LayoutParams wordLp = new LinearLayout.LayoutParams(WRAP, WRAP);
         wordLp.leftMargin = dp(18);
         bar.addView(word, wordLp);
-        clock = Ui.text(this, 32, CLOCK, Ui.REGULAR);
-        clock.setLetterSpacing(-0.02f);
-        LinearLayout.LayoutParams clockLp = new LinearLayout.LayoutParams(WRAP, WRAP);
-        clockLp.leftMargin = dp(16);
-        bar.addView(clock, clockLp);
-        bar.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
         appsBtn = new IconButton(this, IconButton.APPS, "Apps");
         appsBtn.setOnClickListener(v -> openPage(Catalog.APPS, v));
-        bar.addView(appsBtn);
+        LinearLayout.LayoutParams after = new LinearLayout.LayoutParams(WRAP, WRAP);
+        after.leftMargin = dp(22);
+        bar.addView(appsBtn, after);
         settingsBtn = new IconButton(this, IconButton.SETTINGS, "Settings");
         settingsBtn.setOnClickListener(v -> openSettings());
         LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(WRAP, WRAP);
         gap.leftMargin = dp(12);
         bar.addView(settingsBtn, gap);
+        bar.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
+        clock = Ui.text(this, 32, CLOCK, Ui.REGULAR);
+        clock.setLetterSpacing(-0.02f);
+        bar.addView(clock);
         for (View b : new View[] {menuBtn, appsBtn, settingsBtn}) b.setId(View.generateViewId());
         column.addView(bar, new LinearLayout.LayoutParams(MATCH, WRAP));
 
@@ -417,8 +418,9 @@ public final class Home extends Activity {
         return y;
     }
 
+    /** The margin round the screen, the same at the sides as at the top. */
     private int gutter() {
-        return dp(48);
+        return dp(40);
     }
 
     private int panelHeight() {
@@ -487,6 +489,8 @@ public final class Home extends Activity {
         List<Item> ap = visibleApps();
         // With no inputs to show, the apps shelf shows anyway, so home is never empty.
         boolean showApps = "on".equals(cfg.get(Config.APPS_SHELF)) || in.isEmpty();
+        // AirPlay always closes the inputs row.
+        if ("on".equals(cfg.get(Config.INPUTS))) in.add(Catalog.airplay(allApps));
         fill(inputs, in);
         fill(apps, showApps ? ap : new ArrayList<>());
         for (Item it : ap) {
@@ -674,7 +678,7 @@ public final class Home extends Activity {
     private void itemMenu(Shelf shelf, Tile tile) {
         Item it = shelf != null ? shelf.current() : tile.item;
         String kind = shelf != null ? shelf.kind : tile.kind;
-        if (it == null) return;
+        if (it == null || Item.AIRPLAY.equals(it.id)) return;
         boolean app = Catalog.APPS.equals(kind);
         List<String> labels = new ArrayList<>();
         List<Runnable> actions = new ArrayList<>();
@@ -787,6 +791,13 @@ public final class Home extends Activity {
     }
 
     private void open(Item it, String kind) {
+        if (Item.AIRPLAY.equals(it.id)) {
+            if (it.receiver == null) {
+                Toast.makeText(this, "Fire TV needs an AirPlay app. Opening the Appstore.", Toast.LENGTH_LONG).show();
+            }
+            launch(new Intent(it.intent), it.receiver);
+            return;
+        }
         if (Catalog.APPS.equals(kind)) {
             launch(new Intent(it.intent), it.id);
             return;
