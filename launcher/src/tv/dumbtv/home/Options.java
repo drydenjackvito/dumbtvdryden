@@ -49,7 +49,7 @@ public final class Options extends Activity {
         list.addView(gap());
         list.addView(action("Apps on home screen", () -> pick(Catalog.APPS)));
         list.addView(action("Inputs on home screen", () -> pick(Catalog.INPUTS)));
-        list.addView(action("Reset order, names and hidden covers", this::reset));
+        list.addView(action("Reset order, names and hidden panels", this::reset));
         list.addView(action("Open Amazon's home screen", () -> {
             Guard.amazon(this);
             finish();
@@ -187,7 +187,7 @@ public final class Options extends Activity {
     private void reset() {
         new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle("Reset the home screen layout?")
-                .setMessage("Order, names and hidden covers go back to default. Other options stay.")
+                .setMessage("Order, names and hidden panels go back to default. Other options stay.")
                 .setPositiveButton("Reset", (d, w) -> cfg.removePrefix("name.", "apps.", "inputs."))
                 .setNegativeButton("Cancel", null)
                 .show();

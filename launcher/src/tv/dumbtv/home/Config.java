@@ -50,7 +50,7 @@ final class Config {
         }
     }
 
-    static final Choice TILES = new Choice("tiles", "Cover size", "medium",
+    static final Choice TILES = new Choice("tiles", "Panel size", "medium",
             new String[] {"small", "medium", "large"},
             new String[] {"Small", "Medium", "Large"});
     static final Choice ORDER = new Choice("order", "App order", "custom",
@@ -63,11 +63,15 @@ final class Config {
     static final Choice INPUTS = new Choice("inputs", "Inputs shelf", "on",
             new String[] {"on", "off"},
             new String[] {"Shown", "Hidden"});
+    /** The live picture of the selected input above the panels. */
+    static final Choice PREVIEW = new Choice("preview", "Input preview", "on",
+            new String[] {"on", "off"},
+            new String[] {"Live", "Off"});
     static final Choice SWITCH = new Choice("switch", "Open inputs with", "auto",
             new String[] {"auto", "tv", "home"},
             new String[] {"Automatic", "The TV's app", "dumbtv home"});
 
-    static final Choice[] CHOICES = {TILES, ORDER, APPS_SHELF, INPUTS, SWITCH};
+    static final Choice[] CHOICES = {TILES, ORDER, APPS_SHELF, INPUTS, PREVIEW, SWITCH};
 
     private static Config instance;
 

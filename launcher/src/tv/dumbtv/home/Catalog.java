@@ -13,6 +13,7 @@ import android.text.TextUtils;
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,19 +67,32 @@ final class Catalog {
         List<Item> out = new ArrayList<>();
         if (tv == null) return out;
         List<Item> other = new ArrayList<>();
+        // A device found over HDMI-CEC (a PS5, a soundbar) is listed as a child input of its
+        // port, labelled with the name the device reports. Its port's tile takes that name, so
+        // it reads "PS5" rather than "HDMI 2", and the device is not listed a second time.
+        Map<String, CharSequence> device = new HashMap<>();
+        Map<Item, String> port = new HashMap<>();
         for (TvInputInfo in : tv.getTvInputList()) {
-            if (!in.isPassthroughInput() || in.isHidden(c)) continue;
-            CharSequence label = in.loadCustomLabel(c);
+            if (in.getParentId() == null || !in.isPassthroughInput()) continue;
+            CharSequence name = in.loadLabel(c);
+            if (!TextUtils.isEmpty(name) && !device.containsKey(in.getParentId())) device.put(in.getParentId(), name);
+        }
+        for (TvInputInfo in : tv.getTvInputList()) {
+            if (!in.isPassthroughInput() || in.isHidden(c) || in.getParentId() != null) continue;
+            CharSequence label = device.get(in.getId());
+            if (TextUtils.isEmpty(label)) label = in.loadCustomLabel(c);
             if (TextUtils.isEmpty(label)) label = in.loadLabel(c);
             Intent view = new Intent(Intent.ACTION_VIEW,
                     TvContract.buildChannelUriForPassthroughInput(in.getId()));
             Item it = new Item(in.getId(), label, view);
             it.state = tv.getInputState(in.getId());
+            port.put(it, in.loadLabel(c).toString());
             (in.getType() == TvInputInfo.TYPE_HDMI ? out : other).add(it);
         }
         Collator collator = Collator.getInstance();
-        Collections.sort(out, (a, b) -> collator.compare(a.label.toString(), b.label.toString()));
-        Collections.sort(other, (a, b) -> collator.compare(a.label.toString(), b.label.toString()));
+        // By port ("HDMI 1", "HDMI 2"), so a tile keeps its place when its device's name changes.
+        Collections.sort(out, (a, b) -> collator.compare(port.get(a), port.get(b)));
+        Collections.sort(other, (a, b) -> collator.compare(port.get(a), port.get(b)));
         out.addAll(other);
         return out;
     }

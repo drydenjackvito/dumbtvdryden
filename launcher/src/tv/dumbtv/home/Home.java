@@ -7,15 +7,14 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.StateListDrawable;
 import android.media.tv.TvInputManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.text.format.DateFormat;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -29,6 +28,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,14 +38,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
- * The home screen, laid out like the Physeek app: a top bar (menu, the wordmark, Apps and
- * Settings) over coverflow shelves, and a View All page that shows one shelf as a grid.
+ * The home screen: a top bar (menu, the wordmark and the clock at the left, Apps and Settings at
+ * the right), a live preview of the selected input, and a row of sliding panels near the bottom.
+ * Apps opens a grid of every app.
  */
 public final class Home extends Activity {
     private static final int MATCH = ViewGroup.LayoutParams.MATCH_PARENT;
     private static final int WRAP = ViewGroup.LayoutParams.WRAP_CONTENT;
-    /** The name in the middle of the top bar. */
+    /** The name in the top bar. */
     static final String WORDMARK = "Tomboy";
+    /** The clock's light grey. */
+    private static final int CLOCK = 0xFFB4B4BC;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -55,11 +58,15 @@ public final class Home extends Activity {
     private int applied = -1, appsGeneration;
     private boolean resumed, landed;
 
+    private FrameLayout root;
+    private LinearLayout bar;
     private IconButton menuBtn, appsBtn, settingsBtn;
-    private ScrollView home, page;
-    private LinearLayout homeColumn;
-    private Block apps, inputs;
+    private TextView clock;
+    private Preview preview;
+    private LinearLayout home;
+    private Shelf apps, inputs;
     private TextView empty;
+    private ScrollView page;
     private TextView pageTitle, pageCount;
     private Grid pageGrid;
     private String pageKind;
@@ -74,6 +81,13 @@ public final class Home extends Activity {
         public void onReceive(Context c, Intent i) {
             Uri data = i.getData();
             loadApps(data == null ? null : data.getSchemeSpecificPart());
+        }
+    };
+
+    private final BroadcastReceiver time = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context c, Intent i) {
+            tick();
         }
     };
 
@@ -99,65 +113,20 @@ public final class Home extends Activity {
         }
     };
 
-    /** One shelf on the home screen: its title, View All, and the coverflow. */
-    private final class Block extends LinearLayout {
-        final String kind;
-        final TextView viewAll;
-        Shelf shelf;
-        /** The middle cover's id across a rebuild of the shelf. */
-        String keep;
-
-        Block(String kind, String name) {
-            super(Home.this);
-            this.kind = kind;
-            setOrientation(VERTICAL);
-            setClipChildren(false);
-            setClipToPadding(false);
-            LinearLayout header = new LinearLayout(Home.this);
-            header.setGravity(Gravity.CENTER_VERTICAL);
-            header.setPadding(gutter(), 0, gutter() - dp(10), 0);
-            TextView title = Ui.title(Home.this, 28);
-            title.setText(name);
-            header.addView(title, new LinearLayout.LayoutParams(0, WRAP, 1f));
-            viewAll = Ui.text(Home.this, 16, Ui.MUTED, Ui.MEDIUM);
-            viewAll.setText("View All  ›");
-            viewAll.setPadding(dp(14), dp(8), dp(14), dp(8));
-            viewAll.setFocusable(true);
-            viewAll.setClickable(true);
-            viewAll.setId(View.generateViewId());
-            pill(viewAll);
-            viewAll.setOnClickListener(v -> openPage(kind, v));
-            header.addView(viewAll);
-            addView(header, new LinearLayout.LayoutParams(MATCH, WRAP));
+    private final Shelf.Listener shelfListener = new Shelf.Listener() {
+        @Override
+        public void moved(Shelf shelf, List<String> ids) {
+            Catalog.saveOrder(cfg, shelf.kind, ids);
+            applied = cfg.version();
         }
 
-        /** (Re)makes the shelf, for a new cover size. */
-        void makeShelf() {
-            if (shelf != null) {
-                Item at = shelf.current();
-                keep = at == null ? null : at.id;
-                removeView(shelf);
+        @Override
+        public void selected(Shelf shelf, Item item) {
+            if (resumed && pageKind == null) {
+                preview.show(item, shelf.kind, "on".equals(cfg.get(Config.PREVIEW)));
             }
-            shelf = new Shelf(Home.this, kind, dp(coverHeight()), covers);
-            shelf.setId(View.generateViewId());
-            shelf.setOnClickListener(v -> {
-                Item it = shelf.current();
-                if (it != null) open(it, kind);
-            });
-            shelf.setOnLongClickListener(v -> {
-                itemMenu(shelf, null);
-                return true;
-            });
-            shelf.setListener((s, ids) -> {
-                Catalog.saveOrder(cfg, kind, ids);
-                applied = cfg.version();
-                rebuildPage();
-            });
-            viewAll.setNextFocusDownId(shelf.getId());
-            shelf.setNextFocusUpId(viewAll.getId());
-            addView(shelf, new LinearLayout.LayoutParams(MATCH, WRAP));
         }
-    }
+    };
 
     @Override
     protected void onCreate(Bundle state) {
@@ -184,7 +153,7 @@ public final class Home extends Activity {
 
     /**
      * Waits for the app list and loads the art that shows first, so the first frame is complete
-     * rather than popping covers in a moment later.
+     * rather than popping panels in a moment later.
      */
     private void firstApps(Future<List<Item>> catalog, Future<Map<String, Long>> times) {
         try {
@@ -198,7 +167,7 @@ public final class Home extends Activity {
             loadApps(null);
             return;
         }
-        int fit = 12;
+        int fit = 8;
         for (Item it : visibleApps()) {
             if (fit-- <= 0) break;
             Catalog.art(getPackageManager(), it);
@@ -214,6 +183,15 @@ public final class Home extends Activity {
         cfg.refresh();
         if (cfg.version() != applied) apply();
         refreshRecent();
+        IntentFilter f = new IntentFilter(Intent.ACTION_TIME_TICK);
+        f.addAction(Intent.ACTION_TIME_CHANGED);
+        f.addAction(Intent.ACTION_TIMEZONE_CHANGED);
+        registerReceiver(time, f);
+        tick();
+        View focus = getCurrentFocus();
+        if (focus instanceof Shelf && ((Shelf) focus).current() != null) {
+            shelfListener.selected((Shelf) focus, ((Shelf) focus).current());
+        }
     }
 
     @Override
@@ -221,10 +199,13 @@ public final class Home extends Activity {
         Guard.shown();
     }
 
+    /** Lets go of the previewed input, so the app or input being opened can have it. */
     @Override
     protected void onPause() {
         super.onPause();
         resumed = false;
+        preview.stop();
+        unregisterReceiver(time);
         if (movingTile != null) stopMovingTile();
     }
 
@@ -253,7 +234,7 @@ public final class Home extends Activity {
         }
     }
 
-    /** HOME while the home screen is showing: back to the first shelf. */
+    /** HOME while the home screen is showing: back to the first panel. */
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -308,35 +289,44 @@ public final class Home extends Activity {
     // ---------- Building ----------
 
     private View build() {
-        FrameLayout root = new FrameLayout(this);
+        root = new FrameLayout(this);
         root.setBackgroundColor(Ui.PAGE);
+        preview = new Preview(this);
+        root.addView(preview, new FrameLayout.LayoutParams(0, 0));
+
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
         column.setClipChildren(false);
         root.addView(column, new FrameLayout.LayoutParams(MATCH, MATCH));
 
-        // Top bar: menu at the left, the wordmark in the middle, Apps and Settings at the right.
-        FrameLayout bar = new FrameLayout(this);
+        // Top bar: menu, wordmark and clock at the left; Apps and Settings at the right.
+        bar = new LinearLayout(this);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setClipChildren(false);
         bar.setClipToPadding(false);
         bar.setPadding(gutter(), dp(28), gutter(), dp(10));
         menuBtn = new IconButton(this, IconButton.MENU, "Menu");
         menuBtn.setOnClickListener(v -> mainMenu());
-        bar.addView(menuBtn, new FrameLayout.LayoutParams(WRAP, WRAP, Gravity.START | Gravity.CENTER_VERTICAL));
+        bar.addView(menuBtn);
         TextView word = Ui.title(this, 32);
         word.setText(WORDMARK);
-        bar.addView(word, new FrameLayout.LayoutParams(WRAP, WRAP, Gravity.CENTER));
-        LinearLayout actions = new LinearLayout(this);
-        actions.setClipChildren(false);
+        LinearLayout.LayoutParams wordLp = new LinearLayout.LayoutParams(WRAP, WRAP);
+        wordLp.leftMargin = dp(18);
+        bar.addView(word, wordLp);
+        clock = Ui.text(this, 32, CLOCK, Ui.REGULAR);
+        clock.setLetterSpacing(-0.02f);
+        LinearLayout.LayoutParams clockLp = new LinearLayout.LayoutParams(WRAP, WRAP);
+        clockLp.leftMargin = dp(16);
+        bar.addView(clock, clockLp);
+        bar.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
         appsBtn = new IconButton(this, IconButton.APPS, "Apps");
         appsBtn.setOnClickListener(v -> openPage(Catalog.APPS, v));
+        bar.addView(appsBtn);
         settingsBtn = new IconButton(this, IconButton.SETTINGS, "Settings");
         settingsBtn.setOnClickListener(v -> openSettings());
-        actions.addView(appsBtn);
         LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(WRAP, WRAP);
         gap.leftMargin = dp(12);
-        actions.addView(settingsBtn, gap);
-        bar.addView(actions, new FrameLayout.LayoutParams(WRAP, WRAP, Gravity.END | Gravity.CENTER_VERTICAL));
+        bar.addView(settingsBtn, gap);
         for (View b : new View[] {menuBtn, appsBtn, settingsBtn}) b.setId(View.generateViewId());
         column.addView(bar, new LinearLayout.LayoutParams(MATCH, WRAP));
 
@@ -344,52 +334,27 @@ public final class Home extends Activity {
         body.setClipChildren(false);
         column.addView(body, new LinearLayout.LayoutParams(MATCH, 0, 1f));
 
-        home = new ScrollView(this) {
-            /** Scrolls a whole shelf at a time: the focused one starts at the top edge. */
-            @Override
-            protected int computeScrollDeltaToGetChildRectOnScreen(Rect r) {
-                return shelfTarget(this, r) - getScrollY();
-            }
-
-            /** Up and down only move the focus; scrolling follows it. */
-            @Override
-            public boolean executeKeyEvent(KeyEvent e) {
-                switch (e.getKeyCode()) {
-                    case KeyEvent.KEYCODE_DPAD_UP:
-                    case KeyEvent.KEYCODE_DPAD_DOWN:
-                    case KeyEvent.KEYCODE_PAGE_UP:
-                    case KeyEvent.KEYCODE_PAGE_DOWN:
-                    case KeyEvent.KEYCODE_SPACE:
-                        return false;
-                    default:
-                        return super.executeKeyEvent(e);
-                }
-            }
-        };
-        scrollStyle(home);
-        homeColumn = new LinearLayout(this);
-        homeColumn.setOrientation(LinearLayout.VERTICAL);
-        homeColumn.setClipChildren(false);
-        homeColumn.setClipToPadding(false);
-        homeColumn.setPadding(0, dp(14), 0, dp(40));
-        home.addView(homeColumn, new FrameLayout.LayoutParams(MATCH, WRAP));
+        // The panels sit at the bottom; the preview takes the room above them.
+        home = new LinearLayout(this);
+        home.setOrientation(LinearLayout.VERTICAL);
+        home.setGravity(Gravity.BOTTOM);
+        home.setClipChildren(false);
+        home.setClipToPadding(false);
         body.addView(home, new FrameLayout.LayoutParams(MATCH, MATCH));
-
-        apps = new Block(Catalog.APPS, "Apps");
-        inputs = new Block(Catalog.INPUTS, "Inputs");
-        homeColumn.addView(apps, new LinearLayout.LayoutParams(MATCH, WRAP));
-        LinearLayout.LayoutParams below = new LinearLayout.LayoutParams(MATCH, WRAP);
-        below.topMargin = dp(10);
-        homeColumn.addView(inputs, below);
         empty = Ui.text(this, 18, Ui.MUTED, Ui.MEDIUM);
         empty.setText("Nothing here yet. Press ▲ and pick Apps.");
         empty.setGravity(Gravity.CENTER);
-        empty.setPadding(0, dp(120), 0, 0);
-        homeColumn.addView(empty, new LinearLayout.LayoutParams(MATCH, WRAP));
+        empty.setPadding(0, 0, 0, dp(160));
+        home.addView(empty, new LinearLayout.LayoutParams(MATCH, WRAP));
 
-        // The View All page: a title with a count, then a grid.
+        // The Apps page: a title with a count, then a grid.
         page = new ScrollView(this);
-        scrollStyle(page);
+        page.setFocusable(false);
+        page.setFillViewport(true);
+        page.setVerticalScrollBarEnabled(false);
+        page.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        page.setClipChildren(false);
+        page.setClipToPadding(false);
         LinearLayout pageColumn = new LinearLayout(this);
         pageColumn.setOrientation(LinearLayout.VERTICAL);
         pageColumn.setClipChildren(false);
@@ -410,54 +375,60 @@ public final class Home extends Activity {
         page.addView(pageColumn, new FrameLayout.LayoutParams(MATCH, WRAP));
         page.setVisibility(View.GONE);
         body.addView(page, new FrameLayout.LayoutParams(MATCH, MATCH));
+
+        root.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> ui.post(this::placePreview));
         return root;
     }
 
-    private void scrollStyle(ScrollView s) {
-        s.setFocusable(false);
-        s.setFillViewport(true);
-        s.setVerticalScrollBarEnabled(false);
-        s.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        s.setClipChildren(false);
-        s.setClipToPadding(false);
-    }
-
-    /** Physeek's "View All": grey text, filled with ink when focused. */
-    private void pill(TextView v) {
-        StateListDrawable bg = new StateListDrawable();
-        bg.addState(new int[] {android.R.attr.state_focused}, Ui.round(Ui.INK, dp(18)));
-        bg.addState(new int[0], new ColorDrawable(0));
-        v.setBackground(bg);
-        v.setTextColor(new android.content.res.ColorStateList(
-                new int[][] {{android.R.attr.state_focused}, {}},
-                new int[] {Ui.SURFACE, Ui.MUTED}));
-    }
-
-    /** The scroll position that shows the shelf holding {@code r} from its title down. */
-    private int shelfTarget(ScrollView s, Rect r) {
-        int range = Math.max(0, homeColumn.getHeight() - s.getHeight());
-        int target = 0;
-        boolean first = true;
-        for (Block b : new Block[] {apps, inputs}) {
-            if (b.getVisibility() != View.VISIBLE) continue;
-            if (r.centerY() >= b.getTop()) target = first ? 0 : b.getTop() - dp(6);
-            first = false;
+    /**
+     * The preview fills the room between the top bar and the panels, as a 16:9 window centred
+     * across the screen. Too little room (both shelves shown) hides it.
+     */
+    private void placePreview() {
+        View first = null;
+        for (View s : new View[] {apps, inputs}) {
+            if (s != null && s.getVisibility() == View.VISIBLE && first == null) first = s;
         }
-        return Math.max(0, Math.min(range, target));
+        int top = bar.getBottom() + dp(6);
+        int bottom = first == null ? 0 : topIn(first) - dp(10);
+        int h = bottom - top;
+        int w = Math.min(Math.round(h * 16f / 9f), root.getWidth() - 2 * gutter());
+        h = Math.round(w * 9f / 16f);
+        boolean room = first != null && h >= dp(120) && pageKind == null;
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) preview.getLayoutParams();
+        int want = room ? w : 0, wantH = room ? h : 0;
+        int left = (root.getWidth() - w) / 2, y = bottom - h;
+        if (lp.width != want || lp.height != wantH || lp.leftMargin != left || lp.topMargin != y) {
+            lp.width = want;
+            lp.height = wantH;
+            lp.leftMargin = left;
+            lp.topMargin = y;
+            preview.setLayoutParams(lp);
+        }
+        preview.setVisibility(room ? View.VISIBLE : View.INVISIBLE);
+    }
+
+    private int topIn(View v) {
+        int y = 0;
+        while (v != null && v != root) {
+            y += v.getTop();
+            v = (View) v.getParent();
+        }
+        return y;
     }
 
     private int gutter() {
         return dp(48);
     }
 
-    private int coverHeight() {
+    private int panelHeight() {
         switch (cfg.get(Config.TILES)) {
             case "small":
-                return 126;
+                return 108;
             case "large":
-                return 180;
-            default:
                 return 153;
+            default:
+                return 126;
         }
     }
 
@@ -465,9 +436,35 @@ public final class Home extends Activity {
 
     private void apply() {
         applied = cfg.version();
-        apps.makeShelf();
-        inputs.makeShelf();
+        apps = remake(apps, Catalog.APPS);
+        inputs = remake(inputs, Catalog.INPUTS);
         render();
+    }
+
+    /** (Re)makes a shelf, for a new panel size, keeping the panel it was on. */
+    private Shelf remake(Shelf old, String kind) {
+        String keep = old == null || old.current() == null ? null : old.current().id;
+        int index = Catalog.APPS.equals(kind) ? 0 : 1;
+        if (old != null) {
+            index = home.indexOfChild(old);
+            home.removeView(old);
+        }
+        Shelf s = new Shelf(this, kind, dp(panelHeight()), covers);
+        s.setId(View.generateViewId());
+        s.setTag(keep);
+        s.setListener(shelfListener);
+        s.setOnClickListener(v -> {
+            Item it = s.current();
+            if (it != null) open(it, kind);
+        });
+        s.setOnLongClickListener(v -> {
+            itemMenu(s, null);
+            return true;
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(MATCH, WRAP);
+        if (Catalog.INPUTS.equals(kind)) lp.bottomMargin = 0;
+        home.addView(s, Math.min(index, home.getChildCount()), lp);
+        return s;
     }
 
     private List<Item> visibleApps() {
@@ -485,7 +482,7 @@ public final class Home extends Activity {
 
     /** Fills both shelves and decides which show. */
     private void render() {
-        if (apps.shelf == null) return;
+        if (apps == null) return;
         List<Item> in = visibleInputs();
         List<Item> ap = visibleApps();
         // With no inputs to show, the apps shelf shows anyway, so home is never empty.
@@ -495,9 +492,16 @@ public final class Home extends Activity {
         for (Item it : ap) {
             if (!it.artRequested) loadArt(it);
         }
-        boolean appsOn = !apps.shelf.isEmpty(), inputsOn = !inputs.shelf.isEmpty();
+        boolean appsOn = !apps.isEmpty(), inputsOn = !inputs.isEmpty();
         apps.setVisibility(appsOn ? View.VISIBLE : View.GONE);
         inputs.setVisibility(inputsOn ? View.VISIBLE : View.GONE);
+        // Two shelves overlap a little: the lower panels stand in the upper one's faded reflection.
+        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) inputs.getLayoutParams();
+        int overlap = appsOn && inputsOn ? -Math.round(dp(panelHeight()) * 0.45f) : 0;
+        if (lp.topMargin != overlap) {
+            lp.topMargin = overlap;
+            inputs.setLayoutParams(lp);
+        }
         empty.setVisibility(appsOn || inputsOn ? View.GONE : View.VISIBLE);
         wireFocus();
         rebuildPage();
@@ -505,40 +509,34 @@ public final class Home extends Activity {
         if (pageKind == null && (f == null || !landed || (f instanceof Shelf && ((Shelf) f).isEmpty()) || !f.isShown())) {
             focusFirst(false);
         }
+        placePreview();
     }
 
-    private void fill(Block b, List<Item> items) {
+    private void fill(Shelf s, List<Item> items) {
         List<CharSequence> names = new ArrayList<>();
-        List<String> lines = new ArrayList<>();
-        for (Item it : items) {
-            names.add(Catalog.label(cfg, it));
-            lines.add(Covers.subtitle(it, b.kind, recent));
-        }
-        b.shelf.setItems(items, names, lines, b.keep);
-        b.keep = null;
+        for (Item it : items) names.add(Catalog.label(cfg, it));
+        s.setItems(items, names, (String) s.getTag());
+        s.setTag(null);
     }
 
     /** Down from the top bar lands on the first shelf; up and down move shelf to shelf. */
     private void wireFocus() {
-        List<Block> shown = new ArrayList<>();
-        for (Block b : new Block[] {apps, inputs}) {
-            if (b.getVisibility() == View.VISIBLE) shown.add(b);
+        List<Shelf> shown = new ArrayList<>();
+        for (Shelf s : new Shelf[] {apps, inputs}) {
+            if (s.getVisibility() == View.VISIBLE) shown.add(s);
         }
-        int firstShelf = shown.isEmpty() ? View.NO_ID : shown.get(0).shelf.getId();
+        int firstShelf = shown.isEmpty() ? View.NO_ID : shown.get(0).getId();
         for (View v : new View[] {menuBtn, appsBtn, settingsBtn}) v.setNextFocusDownId(firstShelf);
         for (int i = 0; i < shown.size(); i++) {
-            Block b = shown.get(i);
-            b.shelf.setNextFocusDownId(i + 1 < shown.size() ? shown.get(i + 1).shelf.getId() : b.shelf.getId());
-            b.viewAll.setNextFocusUpId(i > 0 ? shown.get(i - 1).shelf.getId() : appsBtn.getId());
-            b.viewAll.setNextFocusLeftId(b.viewAll.getId());
-            b.viewAll.setNextFocusRightId(b.viewAll.getId());
+            Shelf s = shown.get(i);
+            s.setNextFocusDownId(i + 1 < shown.size() ? shown.get(i + 1).getId() : s.getId());
+            s.setNextFocusUpId(i > 0 ? shown.get(i - 1).getId() : appsBtn.getId());
         }
     }
 
     private void focusFirst(boolean toStart) {
-        home.scrollTo(0, 0);
-        Shelf first = apps.getVisibility() == View.VISIBLE ? apps.shelf
-                : inputs.getVisibility() == View.VISIBLE ? inputs.shelf : null;
+        Shelf first = apps.getVisibility() == View.VISIBLE ? apps
+                : inputs.getVisibility() == View.VISIBLE ? inputs : null;
         if (first != null && !first.isEmpty()) {
             if (toStart) first.jumpTo(0);
             first.requestFocus();
@@ -546,6 +544,12 @@ public final class Home extends Activity {
         } else {
             appsBtn.requestFocus();
         }
+    }
+
+    private void tick() {
+        Date now = new Date();
+        clock.setText(DateFormat.is24HourFormat(this) ? DateFormat.format("HH:mm", now)
+                : DateFormat.format("h:mm", now));
     }
 
     /** Rebuilds the app list, keeping loaded art for every package except {@code changed}. */
@@ -580,48 +584,38 @@ public final class Home extends Activity {
         io.execute(() -> {
             Catalog.art(getPackageManager(), it);
             ui.post(() -> {
-                apps.shelf.invalidate();
+                if (apps != null) apps.invalidate();
                 for (int i = 0; i < pageGrid.getChildCount(); i++) pageGrid.getChildAt(i).invalidate();
             });
         });
     }
 
-    /** Re-reads when apps were last opened: the grey lines, and the order if it follows them. */
+    /** Re-reads when apps were last opened: the grey lines on the Apps page, and the order. */
     private void refreshRecent() {
         io.execute(() -> {
             Map<String, Long> times = Recent.times(this);
             ui.post(() -> {
                 if (isDestroyed()) return;
-                boolean reorder = "recent".equals(cfg.get(Config.ORDER)) && !times.equals(recent);
+                boolean changed = !times.equals(recent);
                 recent = times;
-                if (reorder) {
-                    render();
-                } else if (!apps.shelf.isEmpty()) {
-                    List<String> lines = new ArrayList<>();
-                    for (Item it : visibleApps()) lines.add(Covers.subtitle(it, Catalog.APPS, recent));
-                    apps.shelf.setSubtitles(lines);
-                }
+                if (changed && "recent".equals(cfg.get(Config.ORDER))) render();
             });
         });
     }
 
-    // ---------- View All page ----------
+    // ---------- Apps page ----------
 
     private void openPage(String kind, View opener) {
         pageKind = kind;
         pageOpener = opener;
+        preview.stop();
         pageTitle.setText(Catalog.APPS.equals(kind) ? "Apps" : "Inputs");
         home.setVisibility(View.GONE);
         page.setVisibility(View.VISIBLE);
         page.scrollTo(0, 0);
+        placePreview();
         rebuildPage();
-        // Open on the cover that was in the middle of the shelf, if there is one.
-        Block b = Catalog.APPS.equals(kind) ? apps : inputs;
-        Item at = b.getVisibility() == View.VISIBLE ? b.shelf.current() : null;
         View focus = pageGrid.getChildCount() > 0 ? pageGrid.getChildAt(0) : appsBtn;
-        for (int i = 0; i < pageGrid.getChildCount(); i++) {
-            if (at != null && ((Tile) pageGrid.getChildAt(i)).item == at) focus = pageGrid.getChildAt(i);
-        }
         focus.requestFocus();
     }
 
@@ -632,6 +626,7 @@ public final class Home extends Activity {
         page.setVisibility(View.GONE);
         home.setVisibility(View.VISIBLE);
         pageGrid.removeAllViews();
+        placePreview();
         if (refocus && pageOpener != null && pageOpener.isShown()) pageOpener.requestFocus();
         else if (refocus) focusFirst(false);
     }
@@ -675,7 +670,7 @@ public final class Home extends Activity {
                 });
     }
 
-    /** Move, Rename, Hide, App info: for the middle cover of a shelf, or a tile on the page. */
+    /** Move, Rename, Hide, App info: for the selected panel, or a tile on the Apps page. */
     private void itemMenu(Shelf shelf, Tile tile) {
         Item it = shelf != null ? shelf.current() : tile.item;
         String kind = shelf != null ? shelf.kind : tile.kind;
@@ -686,7 +681,7 @@ public final class Home extends Activity {
         labels.add("Move");
         actions.add(() -> {
             if (app && "recent".equals(cfg.get(Config.ORDER))) {
-                Toast.makeText(this, "App order is Recently used. Pick Your order in Options to move covers.",
+                Toast.makeText(this, "App order is Recently used. Pick Your order in Options to move panels.",
                         Toast.LENGTH_LONG).show();
                 return;
             }
@@ -711,14 +706,13 @@ public final class Home extends Activity {
             actions.add(() -> launch(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                     Uri.fromParts("package", it.id, null)), null));
         }
-        // Under the cover, lined up with its left edge, like Physeek's "more" menu.
+        // Above the selected panel, lined up with its left edge.
         int[] at = new int[2];
         int x, y;
         if (shelf != null) {
             shelf.getLocationOnScreen(at);
-            float coverW = dp(coverHeight()) * 16f / 9f;
-            x = Math.round(at[0] + shelf.getWidth() / 2f - coverW / 2);
-            y = at[1] + shelf.getHeight() - dp(40);
+            x = Math.round(at[0] + shelf.getWidth() / 2f - shelf.coverWidth() / 2);
+            y = Math.max(0, at[1] - dp(50) * labels.size() - dp(20));
         } else {
             tile.getLocationOnScreen(at);
             x = at[0];

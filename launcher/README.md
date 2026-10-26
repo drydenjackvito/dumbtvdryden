@@ -1,7 +1,7 @@
 # Tomboy home (dumbtv home, Physeek style)
 
-A home screen for Fire TV laid out like the Physeek app: a light grey page, a top
-bar, and coverflow shelves. It shows your HDMI inputs, and your apps one press away.
+A home screen for Fire TV in the style of the Physeek app: a light grey page, a top
+bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and your apps one press away.
 
 - **Plain Java and Android views.** No AndroidX, Kotlin, Compose, Play Services or
   any other library.
@@ -14,25 +14,34 @@ bar, and coverflow shelves. It shows your HDMI inputs, and your apps one press a
 
 ## The screen
 
-- **Top bar.** ☰ at the left opens a menu: Options and Amazon's home screen. "Tomboy" sits in the middle (`Home.WORDMARK`). At the right, **Apps** opens
-  every app as a grid, and **Settings** opens Fire TV's settings.
-- **Inputs shelf.** A coverflow, as on Physeek's shelves: the middle cover full size,
-  the others stacked behind it and 20% smaller per step, all standing on a floor that
-  reflects them. The input's name and its state (Connected, Nothing connected) sit
-  under the middle cover. **View All ›** shows the shelf as a grid.
-- **Apps shelf.** The same, for apps. Off by default (Options › Apps shelf); it also
-  shows whenever there are no inputs to show, as on a Fire TV stick, so the home
-  screen is never empty.
+- **Top bar.** ☰, "Tomboy" (`Home.WORDMARK`) and the clock in light grey at the
+  left. ☰ opens a menu: Options and Amazon's home screen. At the right, **Apps**
+  opens every app as a grid, and **Settings** opens Fire TV's settings.
+- **Panels.** A row of equal panels near the bottom of the screen that slides as you
+  move, the selected one in the middle, each standing on a reflective floor. No
+  titles or text around them.
+- **Input names.** An input is named after the device on it when the device says
+  who it is over HDMI-CEC (a PS5 shows as "PS5", not "HDMI 2"). That needs CEC on
+  both ends: on the TV, Settings › Display & Sounds › HDMI CEC Device Control; on a
+  PS5, Settings › System › HDMI › Enable HDMI Device Link. Otherwise the TV's own
+  name for the input is used, and Rename (hold OK) always wins.
+- **Live preview.** Above the panels, the selected input's picture fades in once it
+  arrives, muted, after the selection rests for half a second. A device that is
+  off shows nothing. For an app, its banner fades in. Options › Input preview turns
+  it off.
+- **Apps shelf.** Off by default (Options › Apps shelf); it also shows whenever
+  there are no inputs to show, as on a Fire TV stick, so the home screen is never
+  empty.
 
 | Remote | Does |
 |---|---|
-| ◀ ▶ on a shelf | glide to the next cover |
-| ▲ ▼ | shelf to shelf; up from a shelf reaches View All, then the top bar |
+| ◀ ▶ on the panels | slide to the next panel |
+| ▲ ▼ | between the panels and the top bar |
 | OK | open the app, or switch to the input |
-| Hold OK, or ☰ Menu on a cover | Move, Rename, Hide, App info |
-| Move mode | ◀ ▶ moves the cover (and ▲ ▼ a line, on a grid), any other key drops it |
+| Hold OK, or ☰ Menu on a panel | Move, Rename, Hide, App info |
+| Move mode | ◀ ▶ moves the panel (and ▲ ▼ a line, on the Apps grid), any other key drops it |
 | ☰ Menu elsewhere | the top bar's menu |
-| Back | from a grid: back to the shelves. On the shelves: the first cover |
+| Back | from the Apps grid: back home. At home: the first panel |
 | On an input: Back | back to the home screen |
 | Hold HOME | Fire OS quick menu (Amazon's, unchanged) |
 
@@ -40,14 +49,15 @@ bar, and coverflow shelves. It shows your HDMI inputs, and your apps one press a
 
 | Setting | Choices |
 |---|---|
-| Cover size | small, medium, large (also the number of grid columns: 5, 4, 3) |
+| Panel size | small, medium, large (also the number of grid columns: 5, 4, 3) |
 | App order | your order, or recently used, newest first |
 | Apps shelf | hidden (default), shown |
 | Inputs shelf | shown, hidden |
+| Input preview | live, off |
 | Open inputs with | Automatic, the TV's app, dumbtv home (see below) |
 
 Below them: which apps and inputs appear, a reset for order, names and hidden
-covers, and **Open Amazon's home screen**. Apps without a TV banner, like the
+panels, and **Open Amazon's home screen**. Apps without a TV banner, like the
 Appstore, start hidden; tick them to add them.
 
 ## Install
@@ -98,6 +108,8 @@ order=custom
 apps.shelf=off
 # on off
 inputs=on
+# on off
+preview=on
 # auto tv home
 switch=auto
 apps.order=com.amazon.firetv.youtube,org.videolan.vlc
@@ -193,14 +205,15 @@ Delete both to stop.
 
 | File | What it is |
 |---|---|
-| `src/.../Home.java` | the home screen: top bar, shelves, View All page, menus, move mode |
-| `src/.../Shelf.java` | one coverflow shelf, ported from Physeek's carousel: spacing, stacking, crossfade, spring, reflection |
-| `src/.../Covers.java` | the face of a cover: banner, icon and name, or an input card |
-| `src/.../Tile.java` | one cover on the View All page, with its name and grey line |
-| `src/.../Grid.java` | the View All grid |
+| `src/.../Home.java` | the home screen: top bar, clock, preview, panels, Apps grid, menus, move mode |
+| `src/.../Shelf.java` | the sliding row of panels: spring glide, reflection |
+| `src/.../Preview.java` | the live, muted preview of the selected input |
+| `src/.../Covers.java` | the face of a panel: banner, icon and name, or an input card |
+| `src/.../Tile.java` | one app on the Apps grid, with its name and grey line |
+| `src/.../Grid.java` | the Apps grid |
 | `src/.../IconButton.java` | the top bar's square buttons |
 | `src/.../InkMenu.java` | Physeek's dark pop-up menu |
-| `src/.../Catalog.java` | which apps and inputs exist, and their order |
+| `src/.../Catalog.java` | which apps and inputs exist, their names (CEC device names), and their order |
 | `src/.../Item.java` | one app or input |
 | `src/.../Input.java` | the built-in input screen (`TvView`) |
 | `src/.../Config.java` | reads and writes `home.conf` |
