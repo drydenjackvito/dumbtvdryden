@@ -52,7 +52,7 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   sweep now and then and short glitches that jolt it sideways), **Plain**
   (a fade), or **Off**. The video itself cannot be warped: the TV's hardware draws it
   under the app, so the hologram is layered over it. Round the preview, a glow in its
-  colours: a 64x36 copy of the picture, twice a second, blurred, reaching about 30 dp past the edges. Where the TV will not
+  colours: a 64x36 copy of the picture, twice a second, blurred, reaching about 16 dp past the edges, at full brightness with nearly its own saturation. Where the TV will not
   share the picture (often for HDCP sources), the glow is a soft neutral white.
 - **Apps shelf.** Off by default (Options › Apps shelf); it also shows whenever
   there are no inputs to show, as on a Fire TV stick, so the home screen is never

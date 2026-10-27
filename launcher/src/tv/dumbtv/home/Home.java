@@ -378,7 +378,7 @@ public final class Home extends Activity {
         gap.leftMargin = dp(12);
         bar.addView(settingsBtn, gap);
         bar.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
-        clock = Ui.text(this, 32, CLOCK, Ui.REGULAR);
+        clock = Ui.text(this, 36, CLOCK, Ui.SEMIBOLD); // as heavy as the wordmark, so it stands as tall
         clock.setLetterSpacing(-0.02f);
         bar.addView(clock);
         for (View b : new View[] {menuBtn, appsBtn, settingsBtn}) b.setId(View.generateViewId());

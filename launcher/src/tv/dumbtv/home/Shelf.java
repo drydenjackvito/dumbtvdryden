@@ -44,6 +44,8 @@ final class Shelf extends View {
     private final Paint shade = new Paint();
     private final RectF box = new RectF();
     private final android.graphics.Bitmap contactShadow;
+    private final float shadowBlur;
+    private final Paint occlusion = new Paint();
 
     private List<Item> items = new ArrayList<>();
     private List<CharSequence> titles = new ArrayList<>();
@@ -73,7 +75,7 @@ final class Shelf extends View {
         radius = Ui.dp(c, 12);
         ringGap = Ui.dp(c, 3);
         ringW = Ui.dp(c, 1.75f);
-        glowR = Ui.dp(c, 10);
+        glowR = Ui.dp(c, 6);
         top = glowR;
         glow = focusGlow(Math.round(coverW), Math.round(coverH), radius, glowR);
         clip.addRoundRect(new RectF(0, 0, coverW, coverH), radius, radius, Path.Direction.CW);
@@ -91,7 +93,10 @@ final class Shelf extends View {
         fade.setShader(new LinearGradient(0, coverH, 0, coverH + reflect, colors, stops, Shader.TileMode.CLAMP));
         flat.setColor(Ui.PAGE);
         solid.setColor(Ui.PAGE);
-        contactShadow = softShadow(Math.round(coverW), Ui.dp(c, 7));
+        shadowBlur = Ui.dp(c, 7);
+        contactShadow = underShadow(Math.round(coverW), shadowBlur, Ui.dp(c, 6), radius);
+        occlusion.setShader(new LinearGradient(0, coverH * 0.82f, 0, coverH, 0x00000000, 0x17000000,
+                Shader.TileMode.CLAMP));
         contact.setFilterBitmap(true);
         shade.setColor(0xB3F5F5F7);
         ring.setStyle(Paint.Style.STROKE);
@@ -105,23 +110,20 @@ final class Shelf extends View {
     }
 
     /**
-     * The shadow where a panel meets the floor: darkest at the floor, fading down, and fading out
-     * toward both ends too, so it has no hard left or right edge. Made once, in software: Fire OS
-     * 6 cannot blur or compose gradients on the GPU.
+     * The contact shadow: a thin dark band the panel's width (a little narrower at the ends),
+     * blurred in software so it fades on every side. Drawn centred on the panel's bottom edge,
+     * under the panel.
      */
-    private static android.graphics.Bitmap softShadow(int w, int h) {
-        int[] px = new int[w * h];
-        float ramp = Math.max(1, w * 0.12f);
-        for (int y = 0; y < h; y++) {
-            float down = 1 - (float) y / h;
-            down *= down;
-            for (int x = 0; x < w; x++) {
-                float t = Math.min(1, Math.min(x, w - 1 - x) / ramp);
-                float side = t * t * (3 - 2 * t);
-                px[y * w + x] = Math.round(0.16f * 255 * down * side) << 24;
-            }
-        }
-        return android.graphics.Bitmap.createBitmap(px, w, h, android.graphics.Bitmap.Config.ARGB_8888);
+    private static android.graphics.Bitmap underShadow(int w, float blur, float band, float radius) {
+        int pad = Math.round(blur * 2), bw = w + 2 * pad, bh = Math.round(band) + 2 * pad;
+        android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(bw, bh, android.graphics.Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setColor(0x47000000);
+        p.setMaskFilter(new android.graphics.BlurMaskFilter(blur, android.graphics.BlurMaskFilter.Blur.NORMAL));
+        float inset = w * 0.02f;
+        c.drawRoundRect(new RectF(pad + inset, pad, pad + w - inset, pad + band), radius, band / 2, p);
+        return b;
     }
 
     /**
@@ -344,12 +346,16 @@ final class Shelf extends View {
         flat.setAlpha(Math.round((1 - near) * 255));
         canvas.drawRect(-bleed, coverH, coverW + bleed, coverH + reflect, flat);
         canvas.drawRect(-bleed, coverH + reflect - 0.5f, coverW + bleed, coverH * 2, solid);
+        // The contact shadow sits under the panel: centred on its bottom edge, a little wider,
+        // so it shows below and just past the sides and the panel covers the rest.
         contact.setAlpha(Math.round(near * 255));
-        canvas.drawBitmap(contactShadow, 0, coverH, contact);
+        canvas.drawBitmap(contactShadow, -shadowBlur * 2, coverH - contactShadow.getHeight() / 2f, contact);
 
         canvas.save();
         canvas.clipPath(clip);
         covers.draw(canvas, it, kind, title, coverW, coverH);
+        // A touch of ambient occlusion along the bottom edge, where the panel meets the floor.
+        canvas.drawRect(0, coverH * 0.82f, coverW, coverH, occlusion);
         if (moving && k == target) canvas.drawRect(0, 0, coverW, coverH, shade);
         canvas.restore();
         if (moving && k == target) drawArrows(canvas);

@@ -15,8 +15,8 @@ import android.view.View;
 final class Glow extends View {
     /** The frame is reduced to this before blurring. */
     static final int SAMPLE_W = 64, SAMPLE_H = 36;
-    /** Reach past the frame, in sample pixels: about 30 dp on a 528 dp preview. */
-    static final int PAD_X = 4, PAD_Y = 4;
+    /** Reach past the frame, in sample pixels: about 16 dp on a 528 dp preview. */
+    static final int PAD_X = 2, PAD_Y = 2;
     private final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final Rect dst = new Rect();
     private Bitmap shown;
@@ -71,7 +71,7 @@ final class Glow extends View {
             }
         }
         float[] tmp = new float[w * h];
-        int r = 2;
+        int r = 1;
         for (float[] c : ch) {
             for (int pass = 0; pass < 2; pass++) {
                 for (int y = 0; y < h; y++) {
@@ -101,7 +101,7 @@ final class Glow extends View {
         int bottom = PAD_Y + src.getHeight();
         float[] colourAlpha = ch[0].clone();
         for (int y = 0; y < h; y++) {
-            float k = y < bottom - 6 ? 1 : y >= bottom ? 0 : (bottom - y) / 6f;
+            float k = y < bottom - 4 ? 1 : y >= bottom ? 0 : (bottom - y) / 4f;
             for (int x = 0; x < w; x++) ch[0][y * w + x] *= k;
         }
         int[] out = new int[w * h];
@@ -111,11 +111,11 @@ final class Glow extends View {
             int A = Math.min(255, Math.round(a * 255 * 0.55f));
             int R = Math.min(255, Math.round(ch[1][i] / ca)), G = Math.min(255, Math.round(ch[2][i] / ca)),
                     B = Math.min(255, Math.round(ch[3][i] / ca));
-            // Light, not shadow: keep the hue, push the colour to full brightness and a little
+            // Light, not shadow: keep the hue, push the colour to full brightness and barely
             // more saturation. A dark blue scene glows bright blue; a near-black one glows white.
             float[] hsv = new float[3];
             android.graphics.Color.RGBToHSV(R, G, B, hsv);
-            hsv[1] = Math.min(1f, hsv[1] * 1.25f);
+            hsv[1] = Math.min(1f, hsv[1] * 1.05f);
             hsv[2] = 1f;
             out[i] = (A << 24) | (android.graphics.Color.HSVToColor(hsv) & 0x00FFFFFF);
         }
