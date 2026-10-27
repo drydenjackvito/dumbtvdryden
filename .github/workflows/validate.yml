@@ -63,13 +63,14 @@ jobs:
       - name: no permissions on Fire OS 7 and later
         run: |
           # The only permissions allowed are Fire OS 6's Keeper trio, each capped at sdk 27, and
-          # MODIFY_AUDIO_SETTINGS (a normal permission, granted at install) for the music ceiling.
+          # MODIFY_AUDIO_SETTINGS and INTERNET (normal permissions, granted at install) for the
+          # music ceiling and the video carried over a game.
           dump=$("$ANDROID_HOME/build-tools/34.0.0/aapt2" dump permissions launcher/build/dumbtv-home.apk)
           echo "$dump"
-          extra=$(echo "$dump" | grep uses-permission | grep -v "maxSdkVersion='27'" | grep -v "android.permission.MODIFY_AUDIO_SETTINGS'" || true)
+          extra=$(echo "$dump" | grep uses-permission | grep -v "maxSdkVersion='27'" | grep -v "android.permission.MODIFY_AUDIO_SETTINGS'" | grep -v "android.permission.INTERNET'" || true)
           [ -z "$extra" ] || { echo "the launcher must request no other permissions on sdk 28+, found: $extra"; exit 1; }
           n=$(echo "$dump" | grep -c uses-permission || true)
-          [ "$n" -le 4 ] || { echo "expected at most the 3 Fire OS 6 permissions and MODIFY_AUDIO_SETTINGS, found $n"; exit 1; }
+          [ "$n" -le 5 ] || { echo "expected at most the 3 Fire OS 6 permissions, MODIFY_AUDIO_SETTINGS and INTERNET, found $n"; exit 1; }
 
   scripts:
     runs-on: ubuntu-latest

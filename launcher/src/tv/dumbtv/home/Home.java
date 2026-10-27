@@ -311,6 +311,7 @@ public final class Home extends Activity {
         if (!detour || !"game".equals(cfg.get(Config.HOME_TWICE))) return false;
         Intent back = Input.last(this);
         if (back == null) return false;
+        back.putExtra(Input.EXTRA_DETOUR, true);
         wasAway = false;
         homeFromAway = 0;
         startActivity(back);

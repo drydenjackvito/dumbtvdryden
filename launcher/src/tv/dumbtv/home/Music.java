@@ -107,6 +107,53 @@ final class Music {
         if (m != null) m.registerCallback(callback, ui);
     }
 
+    /** A video SmartTube was showing: its YouTube id, where it had got to, and its session. */
+    static final class Clip {
+        final String id;
+        final long atMs;
+        final MediaController from;
+
+        Clip(String id, long atMs, MediaController from) {
+            this.id = id;
+            this.atMs = atMs;
+            this.from = from;
+        }
+    }
+
+    /**
+     * SmartTube's video, if its session is still about (it shares the YouTube id as the media
+     * id); null otherwise.
+     */
+    Clip clip() {
+        List<MediaController> all;
+        try {
+            all = sessions.getActiveSessions(listener);
+        } catch (SecurityException e) {
+            return null;
+        }
+        for (MediaController m : all) {
+            if (!m.getPackageName().toLowerCase(java.util.Locale.ROOT).contains("smarttube")) continue;
+            MediaMetadata md = m.getMetadata();
+            String id = md == null ? null : md.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
+            if (id == null || !id.matches("[A-Za-z0-9_-]{6,20}")) continue;
+            PlaybackState st = m.getPlaybackState();
+            // Only a video just being watched: not one left paused in SmartTube long ago.
+            boolean recent = st != null && (st.getState() == PlaybackState.STATE_PLAYING
+                    || android.os.SystemClock.elapsedRealtime() - st.getLastPositionUpdateTime() < 60_000);
+            if (!recent) continue;
+            long at = 0;
+            if (st != null) {
+                at = st.getPosition();
+                if (st.getState() == PlaybackState.STATE_PLAYING && st.getLastPositionUpdateTime() > 0) {
+                    at += (long) ((android.os.SystemClock.elapsedRealtime() - st.getLastPositionUpdateTime())
+                            * st.getPlaybackSpeed());
+                }
+            }
+            return new Clip(id, Math.max(0, at), m);
+        }
+        return null;
+    }
+
     boolean has() {
         return controller != null && controller.getMetadata() != null;
     }

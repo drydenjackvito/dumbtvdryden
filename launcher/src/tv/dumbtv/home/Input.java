@@ -49,12 +49,40 @@ public final class Input extends Activity {
     private final Ceiling ceiling = Ceiling.SHARED; // outlives this screen: HOME keeps the music down
     private int ceilingDb;
     private MiniPlayer player;
+    private VideoWindow video;
+    /** Set by HOME coming back from an app Menu opened: carry SmartTube's video over. */
+    static final String EXTRA_DETOUR = "detour";
     private final Runnable hidePlayer = () -> player.conceal();
     private static final long PLAYER_MS = 5000;
     /** Options › Mini-player › Always: the card stays while there is music. */
     private boolean always;
     /** Whether music was playing at the last look, to catch it starting. */
     private boolean wasPlaying;
+
+    /**
+     * Back from SmartTube by HOME (after Menu sent the viewer there): its video goes on in the
+     * corner from where it was, and SmartTube is paused, as the TV is about to close it anyway.
+     */
+    private boolean carryVideo() {
+        boolean detour = getIntent().getBooleanExtra(EXTRA_DETOUR, false);
+        getIntent().removeExtra(EXTRA_DETOUR); // once: not again on coming back to this screen
+        if (!detour || music == null) return false;
+        Music.Clip clip = music.clip();
+        android.util.Log.i("dumbtv", "carry video: " + (clip == null ? "none" : clip.id + " at " + clip.atMs));
+        if (clip == null) return false;
+        try {
+            clip.from.getTransportControls().pause();
+        } catch (RuntimeException ignored) {
+        }
+        ceilingDb = Integer.parseInt(Config.get(this).get(Ceiling.KEY, "6"));
+        video.play(clip.id, clip.atMs, videoVolume());
+        return true;
+    }
+
+    /** The ceiling as the player's volume, 0 to 100: -6 dB is half as loud. */
+    private int videoVolume() {
+        return (int) Math.round(100 * Math.pow(10, -ceilingDb / 20.0));
+    }
 
     /** Puts the remembered ceiling on the music playing now. */
     private void capMusic() {
@@ -189,8 +217,16 @@ public final class Input extends Activity {
         int gravity = (place.startsWith("t") ? Gravity.TOP : Gravity.BOTTOM)
                 | (place.endsWith("l") ? Gravity.START : Gravity.END);
         FrameLayout.LayoutParams pl = new FrameLayout.LayoutParams(WRAP, WRAP, gravity);
-                pl.setMargins(dp(28), dp(28), dp(28), dp(28)); // the home screen's own margin
+        pl.setMargins(dp(28), dp(28), dp(28), dp(28)); // the home screen's own margin
         root.addView(player, pl);
+        // A SmartTube video, carried over when HOME comes back from it (see onStart).
+        video = new VideoWindow(this, "small".equals(size) ? 0.8f : "large".equals(size) ? 1.3f : 1f, code ->
+                android.widget.Toast.makeText(this, "That video only plays in YouTube's own app",
+                        android.widget.Toast.LENGTH_LONG).show());
+        FrameLayout.LayoutParams vl = new FrameLayout.LayoutParams(video.getLayoutParams().width,
+                video.getLayoutParams().height, gravity);
+        vl.setMargins(dp(28), dp(28), dp(28), dp(28));
+        root.addView(video, vl);
         if ("on".equals(Config.get(this).get(Config.MUSIC))) {
             music = new Music(this, changedSong -> {
                 refreshPlayer();
@@ -221,6 +257,7 @@ public final class Input extends Activity {
             return;
         }
         boolean musicOn = music != null && music.start() && music.anyPlaying();
+        boolean videoOn = carryVideo();
         remember(this, id, getIntent().getCharSequenceExtra(EXTRA_NAME));
         Config.get(this).set(DETOUR, "0"); // back on the input: no detour pending
         wasPlaying = musicOn;
@@ -230,7 +267,7 @@ public final class Input extends Activity {
         }
         // Taking audio focus stops other apps' sound; with music playing, it is left alone so the
         // music keeps going over the game.
-        if (!musicOn) {
+        if (!musicOn && !videoOn) {
             ((AudioManager) getSystemService(Context.AUDIO_SERVICE))
                     .requestAudioFocus(focus, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
         }
@@ -241,6 +278,12 @@ public final class Input extends Activity {
         ui.postDelayed(noSignal, SIGNAL_MS);
     }
 
+    @Override
+    protected void onDestroy() {
+        video.destroy();
+        super.onDestroy();
+    }
+
     /** Releases the input so the TV stops routing it the moment this screen leaves. */
     @Override
     @SuppressWarnings("deprecation")
@@ -248,6 +291,7 @@ public final class Input extends Activity {
         ui.removeCallbacksAndMessages(null);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if (music != null) music.stop();
+        video.close();
         if (view != null) {
             view.reset();
             ((AudioManager) getSystemService(Context.AUDIO_SERVICE)).abandonAudioFocus(focus);
@@ -263,6 +307,39 @@ public final class Input extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         boolean down = e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0;
+        // The video in the corner, while it shows, has the media keys, channel up and down (its
+        // volume, as the ceiling), and BACK (which closes it, not the input).
+        if (video.showing()) {
+            switch (e.getKeyCode()) {
+                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                case KeyEvent.KEYCODE_MEDIA_PLAY:
+                case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                    if (down) video.toggle();
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+                case KeyEvent.KEYCODE_MEDIA_NEXT:
+                    if (e.getAction() == KeyEvent.ACTION_DOWN) video.seek(10);
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_REWIND:
+                case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                    if (e.getAction() == KeyEvent.ACTION_DOWN) video.seek(-10);
+                    return true;
+                case KeyEvent.KEYCODE_CHANNEL_UP:
+                case KeyEvent.KEYCODE_CHANNEL_DOWN:
+                    if (down) {
+                        int step = e.getKeyCode() == KeyEvent.KEYCODE_CHANNEL_UP ? -Ceiling.STEP_DB : Ceiling.STEP_DB;
+                        ceilingDb = Math.max(0, Math.min(Ceiling.FLOOR_DB, ceilingDb + step));
+                        Config.get(this).set(Ceiling.KEY, String.valueOf(ceilingDb));
+                        video.volume(videoVolume());
+                    }
+                    return true;
+                case KeyEvent.KEYCODE_BACK:
+                    if (e.getAction() == KeyEvent.ACTION_UP) video.close();
+                    return true;
+                default:
+                    break;
+            }
+        }
         if (music != null && music.has()) {
             switch (e.getKeyCode()) {
                 case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:

@@ -5,11 +5,12 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
 
 - **Plain Java and Android views.** No AndroidX, Kotlin, Compose, Play Services or
   any other library.
-- **No network.** There is no `INTERNET` permission, so Android will not let it
-  open a connection.
-- **No permissions on Fire OS 7 and 8.** It declares three (usage access, task
-  order, boot completed), each limited to Android 8.1 and earlier, for the Fire OS 6
-  Keeper below. Check: `aapt2 dump permissions dumbtv-home.apk`.
+- **Network for one thing only.** `INTERNET` is there for YouTube's embedded player,
+  used only for a SmartTube video carried over a game; nothing else goes online.
+- **Two normal permissions on Fire OS 7 and 8.** `MODIFY_AUDIO_SETTINGS` (the music
+  ceiling) and `INTERNET` (the video above), both granted at install with no prompt.
+  It also declares three (usage access, task order, boot completed), each limited to
+  Android 8.1 and earlier, for the Fire OS 6 Keeper below. Check: `aapt2 dump permissions dumbtv-home.apk`.
 - **No ads, no recommended rows, no account, no analytics, no update checks.**
 
 ## The screen
@@ -71,9 +72,12 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   now-playing screen; with nothing playing, SmartTube (any build: it is found by name).
   One Home from there goes straight back to the input (Options › Home twice › Home
   screen turns that off too).
-- **SmartTube over a game.** Pick a video, press Home Home: SmartTube shrinks to picture-in-picture (set its
-  background playback to picture-in-picture) and the input comes back under it. The media
-  keys and channel ▲ ▼ work on the video; the music card stays out of its way (ⓘ shows it).
+- **SmartTube over a game.** ☰ on an input, pick a video in SmartTube, press Home: the
+  input comes back with the same video in a corner, from where it was (YouTube's embedded
+  player, sized and placed like the music card). SmartTube itself can't float over an HDMI
+  input on this TV: Fire OS frees its memory and closes it as the input's picture starts.
+  ⏯ pauses, ⏩ ⏪ skip 10 s, channel ▲ ▼ set its volume (the ceiling), Back closes it.
+  Some videos can't be embedded; those say so and close.
 - **Home twice.** From another app, pressing Home twice within a few seconds goes straight
   back to the input last shown: pick music in Spotify, Home Home, and the game is back with
   the music over it. Options › Home twice › Home screen turns it off.

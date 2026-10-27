@@ -11,6 +11,10 @@
          permission: granted at install, no prompt. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
+    <!-- The YouTube player for a SmartTube video carried over a game (VideoWindow). A normal
+         permission: granted at install, no prompt. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         android:maxSdkVersion="27" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"
