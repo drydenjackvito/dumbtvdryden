@@ -1,10 +1,6 @@
 package tv.dumbtv.home;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.RectF;
 import android.media.tv.TvView;
 import android.net.Uri;
 import android.os.Handler;
@@ -81,7 +77,6 @@ final class Preview extends FrameLayout {
         holo.jolts(tv != null ? new View[] {tv, art} : new View[] {art});
         addView(holo, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         addView(veil, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-        addView(new Corners(c), new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         setFocusable(false);
     }
 
@@ -178,31 +173,5 @@ final class Preview extends FrameLayout {
         holo.stop();
         veil.animate().cancel();
         veil.animate().alpha(1f).setDuration(120).start();
-    }
-
-    /** Page-coloured corners over the picture, so the window reads as a rounded card. */
-    private static final class Corners extends View {
-        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Path path = new Path();
-        private final float radius;
-
-        Corners(Context c) {
-            super(c);
-            paint.setColor(Ui.PAGE);
-            radius = Ui.dp(c, 16);
-        }
-
-        @Override
-        protected void onSizeChanged(int w, int h, int ow, int oh) {
-            path.reset();
-            path.setFillType(Path.FillType.EVEN_ODD);
-            path.addRect(0, 0, w, h, Path.Direction.CW);
-            path.addRoundRect(new RectF(0, 0, w, h), radius, radius, Path.Direction.CW);
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            canvas.drawPath(path, paint);
-        }
     }
 }

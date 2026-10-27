@@ -36,7 +36,7 @@ final class Holo extends View {
         jolt = Ui.dp(c, 5);
         int clear = Ui.PAGE & 0x00FFFFFF;
         band.setShader(new LinearGradient(0, 0, 0, bandH,
-                new int[] {clear, (0x59 << 24) | clear, clear}, null, Shader.TileMode.CLAMP));
+                new int[] {clear, (0x26 << 24) | clear, clear}, null, Shader.TileMode.CLAMP));
         sweep.setShader(new LinearGradient(0, 0, 0, bandH * 0.6f,
                 new int[] {0x00FFFFFF, 0x2EFFFFFF, 0x00FFFFFF}, null, Shader.TileMode.CLAMP));
         setVisibility(GONE);
@@ -75,7 +75,7 @@ final class Holo extends View {
         float t = (SystemClock.uptimeMillis() - start) / 1000f;
 
         // Breathing: the page shows through a little, more and less, so it never looks solid.
-        float breathe = 0.10f + 0.06f * (float) Math.sin(t * 2.3f) + 0.03f * (float) Math.sin(t * 7.1f);
+        float breathe = 0.065f + 0.02f * (float) Math.sin(t * 2.3f) + 0.01f * (float) Math.sin(t * 7.1f);
         paint.setColor((Math.round(breathe * 255) << 24) | (Ui.PAGE & 0x00FFFFFF));
         canvas.drawRect(0, 0, w, h, paint);
         paint.setColor(TINT);
