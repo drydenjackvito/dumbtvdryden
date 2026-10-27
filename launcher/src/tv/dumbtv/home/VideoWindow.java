@@ -33,7 +33,7 @@ final class VideoWindow extends FrameLayout {
     VideoWindow(Context c, float scale, Ended ended) {
         super(c);
         this.ended = ended;
-        int w = Ui.dp(c, 400 * scale), h = Math.round(w * 9f / 16f);
+        int w = Ui.dp(c, 300 * scale), h = Math.round(w * 9f / 16f);
         setLayoutParams(new FrameLayout.LayoutParams(w, h));
         float radius = Ui.dp(c, 12 * scale);
         setOutlineProvider(new ViewOutlineProvider() {
