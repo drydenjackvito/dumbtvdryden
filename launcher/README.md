@@ -75,9 +75,10 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
 - **SmartTube over a game.** ☰ on an input, pick a video in SmartTube, press Home: the
   input comes back with the same video in a corner, from where it was (YouTube's embedded
   player, sized and placed like the music card). The TV's hardware decoder draws on the
-  video plane the HDMI input holds, so the picture is decoded in software instead
-  (res/raw/tube.js: VP9 up to 240p through WebCodecs, drawn on a canvas at its own size); the player's own
-  video plays on unseen for the sound. SmartTube itself can't float over an HDMI
+  video plane the HDMI input holds, so the picture is decoded in software instead:
+  res/raw/tube.js steers YouTube to VP9 up to 360p and hands each compressed frame and the
+  player's clock to NativeVideo.java, which decodes them with Android's own software VP9
+  decoder into a TextureView. The player's own video plays on unseen for the sound. SmartTube itself can't float over an HDMI
   input on this TV: Fire OS frees its memory and closes it as the input's picture starts.
   ⏯ pauses, ⏩ ⏪ skip 10 s, channel ▲ ▼ set its volume (the ceiling), Back closes it.
   Some videos can't be embedded; those say so and close.

@@ -1,17 +1,18 @@
 // Runs first in YouTube's embed page inside Tomboy's video window (see VideoWindow.java).
 // The TV's hardware decoder draws on the video plane the HDMI input holds, so the page's own
-// video shows black over a game. This catches the compressed video YouTube hands its player,
-// decodes it in software (WebCodecs) and draws it on a canvas, which shows like any other UI.
-// The page's video keeps playing, unseen, for the sound and the clock.
+// video shows black over a game. This catches the compressed video YouTube hands its player and
+// passes each frame, with the player's clock, to Tomboy, which decodes it with Android's own
+// software decoder into a view of its own (NativeVideo.java). The page's video keeps playing,
+// unseen, for the sound and the clock.
 (function () {
   if (window.__tb) return;
   window.__tb = 1;
-  var START = __START__, VOL = __VOL__, MAX_W = 426, MAX_H = 240;
-  var stats = { dec: 0, drawn: 0, late: 0, restarts: 0, skips: 0, ms: 0, lat: 0, latN: 0 };
+  var START = __START__, VOL = __VOL__, MAX_W = 640, MAX_H = 360;
+  var sent = 0;
   function log(s) { try { Tomboy.log(s); } catch (e) {} }
 
-  // 1. Steer YouTube to VP9 (the software decoder's codec) at 240p or less: next to an HDMI
-  // input, the TV's processor decodes about 20 frames a second at 480p and 15 at 360p.
+  // 1. Steer YouTube to VP9 (Android's software decoder's codec) at 360p or less: the TV's
+  // processor is mostly taken next to an HDMI input.
   function ok(t) {
     t = String(t || '');
     if (/av01|avc1|avc3|hev1|hvc1/i.test(t)) return false;
@@ -41,22 +42,8 @@
     };
   }
 
-  // YouTube lowers the quality when the player drops frames. Its own (unseen) player drops none,
-  // so it is told the frames this one could not show in time.
-  var gq = HTMLVideoElement.prototype.getVideoPlaybackQuality;
-  if (gq) {
-    HTMLVideoElement.prototype.getVideoPlaybackQuality = function () {
-      var q = gq.call(this);
-      if (!codec) return q;
-      var total = Math.max(q.totalVideoFrames, stats.drawn + stats.late);
-      return { totalVideoFrames: total, droppedVideoFrames: stats.late, corruptedVideoFrames: 0,
-        creationTime: q.creationTime, totalFrameDelay: q.totalFrameDelay || 0 };
-    };
-  }
-
-  // 2. The video bytes as YouTube appends them: WebM, split into frames.
-  var chunks = [], seen = {}, codec = null;
-  var pend = new Uint8Array(0), clusterTime = 0, tick = 1000; // µs per timecode tick
+  // 2. The video bytes as YouTube appends them: WebM, split into frames, each passed to Tomboy.
+  var codec = null, pend = new Uint8Array(0), clusterTime = 0, tick = 1000; // µs per timecode tick
 
   function vint(b, p, raw) {
     var f = b[p];
@@ -70,6 +57,11 @@
   }
   function uint(b, s, n) { var t = 0; for (var i = 0; i < n; i++) t = t * 256 + b[s + i]; return t; }
   function vp9Key(d) { return d.length > 0 && ((d[0] >> 2) & 1) === 0; }
+  function b64(d) {
+    var s = '';
+    for (var i = 0; i < d.length; i += 8192) s += String.fromCharCode.apply(null, d.subarray(i, i + 8192));
+    return btoa(s);
+  }
 
   function feed(u8, off) {
     var b = new Uint8Array(pend.length + u8.length);
@@ -92,50 +84,20 @@
         var tn = vint(b, s, false), q = s + tn.len;
         var rel = (b[q] << 8) | b[q + 1];
         if (rel & 0x8000) rel -= 0x10000;
-        var data = b.slice(q + 3, s + sz.v);
+        var data = b.subarray(q + 3, s + sz.v);
         var key = ID === 0xA3 ? !!(b[q + 2] & 0x80) : vp9Key(data);
-        var t = Math.round((clusterTime + rel) * tick) + off;
-        if (!seen[t]) {
-          seen[t] = 1;
-          insert({ t: t, key: key, data: data });
-        }
+        Tomboy.chunk(b64(data), Math.round((clusterTime + rel) * tick) + off, key);
+        sent++;
       }
       p = s + sz.v;
     }
     pend = b.slice(p);
   }
 
-  // In time order. YouTube sometimes appends a piece out of order: it goes in its place, and
-  // the decoder carries on (starting it again would decode seconds of video a second time).
-  function insert(c) {
-    var n = chunks.length;
-    if (!n || c.t > chunks[n - 1].t) { chunks.push(c); return; }
-    var lo = 0, hi = n;
-    while (lo < hi) { var mid = (lo + hi) >> 1; if (chunks[mid].t < c.t) lo = mid + 1; else hi = mid; }
-    chunks.splice(lo, 0, c);
-    if (lo < fed) fed++; // before what was fed already: behind the clock, not needed
-  }
-
-  function setCodec(type) {
-    var m = /codecs="?([^",]+)/.exec(type);
-    var c = m ? m[1] : 'vp9';
-    if (c === 'vp9') c = 'vp09.00.10.08';
-    if (c === codec) return;
-    codec = c;
-    dec = null; // configure again
-    log('video track ' + type);
-    if (window.VideoDecoder) {
-      VideoDecoder.isConfigSupported({ codec: codec, hardwareAcceleration: 'prefer-software' })
-        .then(function (r) { log('software decoder for ' + codec + ': ' + r.supported); },
-              function (e) { log('software decoder check ' + e); });
-    } else {
-      log('no WebCodecs');
-    }
-  }
   var asb = MediaSource.prototype.addSourceBuffer;
   MediaSource.prototype.addSourceBuffer = function (t) {
     var sb = asb.call(this, t);
-    if (/^video\/webm/i.test(t)) { sb.__tbv = 1; setCodec(t); }
+    if (/^video\/webm/i.test(t)) { sb.__tbv = 1; codec = t; log('video track ' + t); }
     else if (/^video/i.test(t)) log('not webm: ' + t);
     return sb;
   };
@@ -149,82 +111,10 @@
     }
     return ab.call(this, d);
   };
-  if (SourceBuffer.prototype.changeType) {
-    var ct = SourceBuffer.prototype.changeType;
-    SourceBuffer.prototype.changeType = function (t) {
-      if (this.__tbv && /^video\/webm/i.test(t)) setCodec(t);
-      return ct.call(this, t);
-    };
-  }
 
-  // 3. Decoding just ahead of the clock, and drawing the frame that is due.
-  var dec = null, frames = [], fed = 0, needKey = true, target = 0, lastNow = -1, shown = null;
-  var lastOut = -1, lastSkip = 0, sentAt = {}, rafs = 0;
-  function restartAt(now) {
-    stats.restarts++;
-    if (dec) { try { dec.close(); } catch (e) {} }
-    frames.forEach(function (f) { f.close(); });
-    frames = [];
-    if (!codec || !window.VideoDecoder) { dec = null; return; }
-    dec = new VideoDecoder({
-      output: function (f) {
-        lastOut = f.timestamp;
-        var sent = sentAt[f.timestamp];
-        if (sent) { stats.lat += performance.now() - sent; stats.latN++; delete sentAt[f.timestamp]; }
-        if (window.__v) setTimeout(function () { pump(window.__v.currentTime * 1e6); }, 0); // keep it fed
-        if (f.timestamp < target - 40000) { f.close(); stats.late++; return; } // only to reach the target
-        frames.push(f);
-        stats.dec++;
-      },
-      error: function (e) { log('decode ' + e); dec = null; }
-    });
-    dec.configure({ codec: codec, hardwareAcceleration: 'prefer-software', optimizeForLatency: true });
-    needKey = true;
-    target = now;
-    lastOut = -1;
-    var k = -1, i;
-    for (i = 0; i < chunks.length; i++) {
-      if (chunks[i].t > now) break;
-      if (chunks[i].key) k = i;
-    }
-    if (k < 0) for (i = 0; i < chunks.length; i++) if (chunks[i].key && chunks[i].t >= now) { k = i; break; }
-    fed = k < 0 ? chunks.length : k;
-  }
-
-  function pump(now) {
-    if (!codec || !window.VideoDecoder) return;
-    if (!dec || dec.state === 'closed' || Math.abs(now - lastNow) > 2e6) restartAt(now);
-    lastNow = now;
-    // Fallen behind the sound: feed from the next keyframe past the clock, with the same decoder
-    // (a new one takes a while to get going, and would only fall behind again).
-    var n = performance.now();
-    if (lastOut >= 0 && lastOut < now - 700000 && n - lastSkip > 2000) {
-      for (var i = fed; i < chunks.length; i++) {
-        if (chunks[i].key && chunks[i].t > now) { fed = i; target = chunks[i].t; lastSkip = n; stats.skips++; break; }
-      }
-    }
-    while (dec && fed < chunks.length && chunks[fed].t < now + 1000000 && dec.decodeQueueSize < 16 && frames.length < 16) {
-      var c = chunks[fed++];
-      if (needKey && !c.key) continue;
-      needKey = false;
-      try {
-        sentAt[c.t] = performance.now();
-        dec.decode(new EncodedVideoChunk({ type: c.key ? 'key' : 'delta', timestamp: c.t, data: c.data }));
-      } catch (e) { log('feed ' + e); dec = null; break; }
-    }
-  }
-
-  // Forget frames well behind the clock, keeping the last keyframe before it for small seeks back.
-  function prune(now) {
-    var k = -1;
-    for (var i = 0; i < chunks.length && chunks[i].t < now - 3e6; i++) if (chunks[i].key) k = i;
-    if (k > 0 && k <= fed) {
-      chunks.splice(0, k).forEach(function (c) { delete seen[c.t]; });
-      fed -= k;
-    }
-  }
-
-  var canvas, ctx, video, told = false, lastLog = 0, lastLogBase = 0, lastPrune = 0, err = false;
+  // 3. The player: its clock to Tomboy, its overlays hidden, its errors reported.
+  var told = false, err = false, lastLog = 0;
+  function tellClock(v) { Tomboy.clock(v.currentTime, v.paused || v.seeking); }
   function setup() {
     var css = document.createElement('style');
     css.textContent = '.ytp-chrome-top,.ytp-chrome-bottom,.ytp-pause-overlay,.ytp-gradient-top,'
@@ -232,68 +122,30 @@
       + '.ytp-cued-thumbnail-overlay,.ytp-paid-content-overlay{display:none!important}'
       + 'html,body{background:#000!important}';
     document.head.appendChild(css);
-    canvas = document.createElement('canvas');
-    canvas.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;object-fit:contain;'
-      + 'z-index:2147483647;pointer-events:none;background:#000';
-    document.body.appendChild(canvas);
-    ctx = canvas.getContext('2d');
   }
-
-  // Fed on a timer too, not only on the page's frames: those come slowly on the TV.
-  setInterval(function () { if (window.__v) pump(window.__v.currentTime * 1e6); }, 10);
-
-  function frame() {
-    rafs++;
-    if (!canvas && document.body) setup();
+  var looked = setInterval(function () {
+    if (!document.head) return;
     var v = document.querySelector('video');
-    if (v && canvas) {
+    if (v && !told) {
+      told = true;
+      setup();
       window.__v = v;
-      if (!told) {
-        told = true;
-        v.volume = VOL / 100;
-        v.play();
-        Tomboy.ready();
-        v.addEventListener('loadedmetadata', function () {
-          if (START > 3 && v.currentTime < START - 3) v.currentTime = START;
-        });
-      }
-      var now = v.currentTime * 1e6;
-      pump(now);
-      var pick = null;
-      while (frames.length && frames[0].timestamp <= now + 20000) {
-        if (pick) { pick.close(); stats.late++; } // came too late to be shown
-        pick = frames.shift();
-      }
-      if (pick) {
-        var t0 = performance.now();
-        // The canvas at the video's own size, stretched by the page: every decoded pixel kept.
-        var fw = pick.displayWidth, fh = pick.displayHeight;
-        if (canvas.width !== fw || canvas.height !== fh) { canvas.width = fw; canvas.height = fh; }
-        ctx.drawImage(pick, 0, 0, fw, fh);
-        if (shown) shown.close();
-        shown = pick;
-        stats.drawn++;
-        stats.ms += performance.now() - t0;
-      }
-      var n = Date.now();
-      if (n - lastPrune > 1000) { lastPrune = n; prune(now); }
-      if (n - lastLog > 3000) {
-        lastLog = n;
-        if (!lastLogBase) lastLogBase = n - 3000;
-        log('t=' + v.currentTime.toFixed(1) + ' paused=' + v.paused + ' codec=' + codec + ' chunks=' + chunks.length
-          + ' decoded=' + stats.dec + ' drawn=' + stats.drawn + ' late=' + stats.late + ' restarts=' + stats.restarts
-          + ' skips=' + stats.skips
-          + ' queue=' + (dec ? dec.decodeQueueSize : '-') + '/' + frames.length
-          + ' drawMs=' + (stats.drawn ? (stats.ms / stats.drawn).toFixed(1) : '-')
-          + ' decodeMs=' + (stats.latN ? (stats.lat / stats.latN).toFixed(0) : '-')
-          + ' pageFps=' + (rafs / ((n - lastLogBase) / 1000)).toFixed(0) + (function () { rafs = 0; lastLogBase = n; return ''; })()
-          + ' size=' + (shown ? shown.displayWidth + 'x' + shown.displayHeight : '-')
-          + ' canvas=' + canvas.width + 'x' + canvas.height + ' dpr=' + devicePixelRatio);
-      }
+      v.volume = VOL / 100;
+      v.play();
+      Tomboy.ready();
+      ['timeupdate', 'play', 'playing', 'pause', 'seeking', 'seeked', 'ratechange', 'waiting']
+        .forEach(function (e) { v.addEventListener(e, function () { tellClock(v); }); });
+      v.addEventListener('loadedmetadata', function () {
+        if (START > 3 && v.currentTime < START - 3) v.currentTime = START;
+      });
+      setInterval(function () { tellClock(v); }, 250);
     }
     var er = document.querySelector('.ytp-error');
     if (er && er.offsetParent && !err) { err = true; log('error: ' + er.innerText.slice(0, 80)); Tomboy.error(150); }
-    requestAnimationFrame(frame);
-  }
-  requestAnimationFrame(frame);
+    var n = Date.now();
+    if (v && n - lastLog > 3000) {
+      lastLog = n;
+      log('t=' + v.currentTime.toFixed(1) + ' paused=' + v.paused + ' codec=' + codec + ' sent=' + sent);
+    }
+  }, 200);
 })();

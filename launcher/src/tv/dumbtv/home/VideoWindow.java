@@ -26,6 +26,7 @@ final class VideoWindow extends FrameLayout {
     }
 
     private final WebView web;
+    private final NativeVideo decoder = new NativeVideo();
     private final Ended ended;
     private boolean ready;
 
@@ -61,17 +62,22 @@ final class VideoWindow extends FrameLayout {
         web.setWebChromeClient(new WebChromeClient());
         web.addJavascriptInterface(this, "Tomboy");
         addView(web, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        // Over the page: the picture, decoded by Android's software decoder (see NativeVideo).
+        android.view.TextureView screen = new android.view.TextureView(c);
+        screen.setSurfaceTextureListener(decoder);
+        addView(screen, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         setVisibility(GONE);
     }
 
     /**
      * Plays {@code id} from {@code atMs}, at {@code volume} (0 to 100), with YouTube's embed page
-     * opened on its own so the script in res/raw/tube.js can run in it first: it decodes the
-     * video in software onto a canvas (the hardware decoder's picture lands on the video plane
-     * the HDMI input holds, and shows black here).
+     * opened on its own so the script in res/raw/tube.js can run in it first: it hands the
+     * compressed video and the player's clock to {@link NativeVideo}, which shows the picture
+     * (the hardware decoder's lands on the video plane the HDMI input holds, and shows black).
      */
     void play(String id, long atMs, int volume) {
         ready = false;
+        decoder.reset();
         startS = atMs / 1000;
         this.volume = volume;
         String url = "https://www.youtube.com/embed/" + id + "?autoplay=1&controls=0&rel=0&fs=0"
@@ -160,16 +166,30 @@ final class VideoWindow extends FrameLayout {
     }
 
     void close() {
+        decoder.reset();
         web.loadUrl("about:blank");
         setVisibility(GONE);
     }
 
     void destroy() {
+        decoder.stop();
         web.destroy();
     }
 
     private void js(String call) {
         if (ready) web.evaluateJavascript(call, null);
+    }
+
+    /** A compressed frame, as the page caught it: {@code t} in microseconds. */
+    @JavascriptInterface
+    public void chunk(String base64, double t, boolean key) {
+        decoder.add((long) t, key, android.util.Base64.decode(base64, android.util.Base64.NO_WRAP));
+    }
+
+    /** The page's player clock, in seconds. */
+    @JavascriptInterface
+    public void clock(double seconds, boolean paused) {
+        decoder.clock(seconds, paused);
     }
 
     @JavascriptInterface
