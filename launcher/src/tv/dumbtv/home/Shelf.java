@@ -93,9 +93,9 @@ final class Shelf extends View {
         fade.setShader(new LinearGradient(0, coverH, 0, coverH + reflect, colors, stops, Shader.TileMode.CLAMP));
         flat.setColor(Ui.PAGE);
         solid.setColor(Ui.PAGE);
-        shadowBlur = Ui.dp(c, 7);
-        contactShadow = underShadow(Math.round(coverW), shadowBlur, Ui.dp(c, 6), radius);
-        occlusion.setShader(new LinearGradient(0, coverH * 0.82f, 0, coverH, 0x00000000, 0x17000000,
+        shadowBlur = Ui.dp(c, 3.5f);
+        contactShadow = underShadow(Math.round(coverW), shadowBlur, Ui.dp(c, 2.5f), radius);
+        occlusion.setShader(new LinearGradient(0, coverH * 0.88f, 0, coverH, 0x00000000, 0x0B000000,
                 Shader.TileMode.CLAMP));
         contact.setFilterBitmap(true);
         shade.setColor(0xB3F5F5F7);
@@ -119,7 +119,7 @@ final class Shelf extends View {
         android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(bw, bh, android.graphics.Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(b);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setColor(0x47000000);
+        p.setColor(0x52000000);
         p.setMaskFilter(new android.graphics.BlurMaskFilter(blur, android.graphics.BlurMaskFilter.Blur.NORMAL));
         float inset = w * 0.02f;
         c.drawRoundRect(new RectF(pad + inset, pad, pad + w - inset, pad + band), radius, band / 2, p);
@@ -355,7 +355,7 @@ final class Shelf extends View {
         canvas.clipPath(clip);
         covers.draw(canvas, it, kind, title, coverW, coverH);
         // A touch of ambient occlusion along the bottom edge, where the panel meets the floor.
-        canvas.drawRect(0, coverH * 0.82f, coverW, coverH, occlusion);
+        canvas.drawRect(0, coverH * 0.88f, coverW, coverH, occlusion);
         if (moving && k == target) canvas.drawRect(0, 0, coverW, coverH, shade);
         canvas.restore();
         if (moving && k == target) drawArrows(canvas);

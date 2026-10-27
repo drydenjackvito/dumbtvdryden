@@ -25,6 +25,8 @@ final class Greetings {
     /** Whose TV this is; greeting.name in home.conf overrides it. */
     static final String DEFAULT_NAME = "Dryden";
     private static final Random RANDOM = new Random();
+    /** The line shown last, so the next pick is a different one when there is a choice. */
+    private static String last;
 
     private Greetings() {}
 
@@ -49,7 +51,10 @@ final class Greetings {
             }
             if (inside) lines.add(l);
         }
-        return lines.isEmpty() ? null : lines.get(RANDOM.nextInt(lines.size()));
+        if (lines.isEmpty()) return null;
+        if (lines.size() > 1) lines.remove(last);
+        last = lines.get(RANDOM.nextInt(lines.size()));
+        return last;
     }
 
     /** Whether a header such as "[night] 21:00-05:00" covers {@code minute}. */

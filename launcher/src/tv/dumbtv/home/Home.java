@@ -90,6 +90,14 @@ public final class Home extends Activity {
         }
     };
 
+    /** Waking the TV: a fresh greeting, even when this screen never left the front. */
+    private final BroadcastReceiver screenOn = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context c, Intent i) {
+            if (resumed) greet();
+        }
+    };
+
     private final BroadcastReceiver time = new BroadcastReceiver() {
         @Override
         public void onReceive(Context c, Intent i) {
@@ -152,6 +160,7 @@ public final class Home extends Activity {
         f.addAction(Intent.ACTION_PACKAGE_CHANGED);
         f.addDataScheme("package");
         registerReceiver(packages, f);
+        registerReceiver(screenOn, new IntentFilter(Intent.ACTION_SCREEN_ON));
         Keeper.start(this);
         if (tv != null) tv.registerCallback(inputWatch, ui);
         firstApps(catalog, times);
@@ -245,6 +254,7 @@ public final class Home extends Activity {
     @Override
     protected void onDestroy() {
         unregisterReceiver(packages);
+        unregisterReceiver(screenOn);
         if (tv != null) tv.unregisterCallback(inputWatch);
         io.shutdownNow();
         super.onDestroy();
@@ -364,7 +374,7 @@ public final class Home extends Activity {
         bar.addView(menuBtn);
         TextView word = Ui.title(this, 32);
         word.setText(WORDMARK);
-        LinearLayout.LayoutParams wordLp = new LinearLayout.LayoutParams(WRAP, WRAP);
+        LinearLayout.LayoutParams wordLp = capsAsTall(word, "T", dp(52));
         wordLp.leftMargin = dp(18);
         bar.addView(word, wordLp);
         appsBtn = new IconButton(this, IconButton.APPS, "Apps");
@@ -378,9 +388,9 @@ public final class Home extends Activity {
         gap.leftMargin = dp(12);
         bar.addView(settingsBtn, gap);
         bar.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
-        clock = Ui.text(this, 36, CLOCK, Ui.SEMIBOLD); // as heavy as the wordmark, so it stands as tall
+        clock = Ui.text(this, 36, CLOCK, Ui.SEMIBOLD);
         clock.setLetterSpacing(-0.02f);
-        bar.addView(clock);
+        bar.addView(clock, capsAsTall(clock, "0", dp(52)));
         for (View b : new View[] {menuBtn, appsBtn, settingsBtn}) b.setId(View.generateViewId());
         column.addView(bar, new LinearLayout.LayoutParams(MATCH, WRAP));
 
@@ -480,6 +490,30 @@ public final class Home extends Activity {
             g.topMargin = top;
             greeting.setLayoutParams(g);
         }
+    }
+
+    /**
+     * Sizes {@code v} so its capitals (or digits) stand exactly {@code height} tall, lined up
+     * with the top bar's buttons, without making the bar taller: the text box keeps the
+     * buttons' height and the letters are moved so the capitals sit centred on the row.
+     */
+    private static LinearLayout.LayoutParams capsAsTall(TextView v, String sample, int height) {
+        android.graphics.Paint p = new android.graphics.Paint(v.getPaint());
+        p.setTextSize(100);
+        android.graphics.Rect r = new android.graphics.Rect();
+        p.getTextBounds(sample, 0, sample.length(), r);
+        float size = 100f * height / Math.max(1, r.height());
+        v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, size);
+        android.graphics.Paint.FontMetrics fm = v.getPaint().getFontMetrics();
+        float box = fm.descent - fm.ascent;
+        int squeeze = Math.max(0, Math.round((box - height) / 2));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
+        lp.topMargin = -squeeze;
+        lp.bottomMargin = -squeeze;
+        // The box is centred on the row; move the letters so the capitals are instead.
+        float boxCentre = box / 2, capCentre = -fm.ascent - height / 2f;
+        v.setTranslationY(boxCentre - capCentre);
+        return lp;
     }
 
     private int topIn(View v) {
