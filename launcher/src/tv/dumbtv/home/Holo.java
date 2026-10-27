@@ -89,10 +89,16 @@ final class Holo extends View {
             canvas.restore();
         }
 
-        // Scan lines, drifting down.
-        paint.setColor(0x22000000);
+        // Scan lines, drifting down: a dark line with a light one under it, for a ridged texture
+        // that reads on dark and bright video alike (an overlay-like look; real blend modes cannot
+        // reach the video, which the hardware draws under this window).
         float off = (t * Ui.dp(getContext(), 10)) % pitch;
-        for (float y = off - pitch; y < h; y += pitch) canvas.drawRect(0, y, w, y + line, paint);
+        for (float y = off - pitch; y < h; y += pitch) {
+            paint.setColor(0x24000000);
+            canvas.drawRect(0, y, w, y + line, paint);
+            paint.setColor(0x1AFFFFFF);
+            canvas.drawRect(0, y + line, w, y + 2 * line, paint);
+        }
 
         // A bright sweep down the picture every 4.5 s.
         float cycle = t % 4.5f;
