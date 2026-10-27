@@ -7,7 +7,7 @@
   if (window.__tb) return;
   window.__tb = 1;
   var START = __START__, VOL = __VOL__, MAX_W = 426, MAX_H = 240;
-  var stats = { dec: 0, drawn: 0, late: 0, restarts: 0, skips: 0, ms: 0 };
+  var stats = { dec: 0, drawn: 0, late: 0, restarts: 0, skips: 0, ms: 0, lat: 0, latN: 0 };
   function log(s) { try { Tomboy.log(s); } catch (e) {} }
 
   // 1. Steer YouTube to VP9 (the software decoder's codec) at 240p or less: next to an HDMI
@@ -159,7 +159,7 @@
 
   // 3. Decoding just ahead of the clock, and drawing the frame that is due.
   var dec = null, frames = [], fed = 0, needKey = true, target = 0, lastNow = -1, shown = null;
-  var lastOut = -1, lastSkip = 0;
+  var lastOut = -1, lastSkip = 0, sentAt = {}, rafs = 0;
   function restartAt(now) {
     stats.restarts++;
     if (dec) { try { dec.close(); } catch (e) {} }
@@ -169,6 +169,9 @@
     dec = new VideoDecoder({
       output: function (f) {
         lastOut = f.timestamp;
+        var sent = sentAt[f.timestamp];
+        if (sent) { stats.lat += performance.now() - sent; stats.latN++; delete sentAt[f.timestamp]; }
+        if (window.__v) setTimeout(function () { pump(window.__v.currentTime * 1e6); }, 0); // keep it fed
         if (f.timestamp < target - 40000) { f.close(); stats.late++; return; } // only to reach the target
         frames.push(f);
         stats.dec++;
@@ -200,11 +203,12 @@
         if (chunks[i].key && chunks[i].t > now) { fed = i; target = chunks[i].t; lastSkip = n; stats.skips++; break; }
       }
     }
-    while (dec && fed < chunks.length && chunks[fed].t < now + 1000000 && dec.decodeQueueSize < 6 && frames.length < 16) {
+    while (dec && fed < chunks.length && chunks[fed].t < now + 1000000 && dec.decodeQueueSize < 16 && frames.length < 16) {
       var c = chunks[fed++];
       if (needKey && !c.key) continue;
       needKey = false;
       try {
+        sentAt[c.t] = performance.now();
         dec.decode(new EncodedVideoChunk({ type: c.key ? 'key' : 'delta', timestamp: c.t, data: c.data }));
       } catch (e) { log('feed ' + e); dec = null; break; }
     }
@@ -220,7 +224,7 @@
     }
   }
 
-  var canvas, ctx, video, told = false, lastLog = 0, lastPrune = 0, err = false;
+  var canvas, ctx, video, told = false, lastLog = 0, lastLogBase = 0, lastPrune = 0, err = false;
   function setup() {
     var css = document.createElement('style');
     css.textContent = '.ytp-chrome-top,.ytp-chrome-bottom,.ytp-pause-overlay,.ytp-gradient-top,'
@@ -235,7 +239,11 @@
     ctx = canvas.getContext('2d');
   }
 
+  // Fed on a timer too, not only on the page's frames: those come slowly on the TV.
+  setInterval(function () { if (window.__v) pump(window.__v.currentTime * 1e6); }, 10);
+
   function frame() {
+    rafs++;
     if (!canvas && document.body) setup();
     var v = document.querySelector('video');
     if (v && canvas) {
@@ -271,11 +279,14 @@
       if (n - lastPrune > 1000) { lastPrune = n; prune(now); }
       if (n - lastLog > 3000) {
         lastLog = n;
+        if (!lastLogBase) lastLogBase = n - 3000;
         log('t=' + v.currentTime.toFixed(1) + ' paused=' + v.paused + ' codec=' + codec + ' chunks=' + chunks.length
           + ' decoded=' + stats.dec + ' drawn=' + stats.drawn + ' late=' + stats.late + ' restarts=' + stats.restarts
           + ' skips=' + stats.skips
           + ' queue=' + (dec ? dec.decodeQueueSize : '-') + '/' + frames.length
           + ' drawMs=' + (stats.drawn ? (stats.ms / stats.drawn).toFixed(1) : '-')
+          + ' decodeMs=' + (stats.latN ? (stats.lat / stats.latN).toFixed(0) : '-')
+          + ' pageFps=' + (rafs / ((n - lastLogBase) / 1000)).toFixed(0) + (function () { rafs = 0; lastLogBase = n; return ''; })()
           + ' size=' + (shown ? shown.displayWidth + 'x' + shown.displayHeight : '-')
           + ' canvas=' + canvas.width + 'x' + canvas.height + ' dpr=' + devicePixelRatio);
       }
