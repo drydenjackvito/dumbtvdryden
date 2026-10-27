@@ -76,7 +76,7 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   input comes back with the same video in a corner, from where it was (YouTube's embedded
   player, sized and placed like the music card). The TV's hardware decoder draws on the
   video plane the HDMI input holds, so the picture is decoded in software instead
-  (res/raw/tube.js: VP9 up to 720p through WebCodecs, drawn on a canvas); the player's own
+  (res/raw/tube.js: VP9 up to 360p through WebCodecs, drawn on a canvas at its own size); the player's own
   video plays on unseen for the sound. SmartTube itself can't float over an HDMI
   input on this TV: Fire OS frees its memory and closes it as the input's picture starts.
   ⏯ pauses, ⏩ ⏪ skip 10 s, channel ▲ ▼ set its volume (the ceiling), Back closes it.

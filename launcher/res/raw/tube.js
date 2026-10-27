@@ -6,17 +6,18 @@
 (function () {
   if (window.__tb) return;
   window.__tb = 1;
-  var START = __START__, VOL = __VOL__;
+  var START = __START__, VOL = __VOL__, MAX_W = 640, MAX_H = 360;
   function log(s) { try { Tomboy.log(s); } catch (e) {} }
 
-  // 1. Steer YouTube to VP9 (the software decoder's codec) at 720p or less.
+  // 1. Steer YouTube to VP9 (the software decoder's codec) at 360p or less: the TV's processor
+  // decodes 480p at about 20 frames a second, short of 30.
   function ok(t) {
     t = String(t || '');
     if (/av01|avc1|avc3|hev1|hvc1/i.test(t)) return false;
     var m = /width=(\d+)/.exec(t);
-    if (m && +m[1] > 1280) return false;
+    if (m && +m[1] > MAX_W) return false;
     m = /height=(\d+)/.exec(t);
-    return !(m && +m[1] > 720);
+    return !(m && +m[1] > MAX_H);
   }
   ['MediaSource', 'ManagedMediaSource', 'WebKitMediaSource'].forEach(function (n) {
     var M = window[n];
@@ -32,7 +33,7 @@
     var di = navigator.mediaCapabilities.decodingInfo.bind(navigator.mediaCapabilities);
     navigator.mediaCapabilities.decodingInfo = function (c) {
       var v = c && c.video;
-      if (v && (!ok(v.contentType) || v.width > 1280 || v.height > 720)) {
+      if (v && (!ok(v.contentType) || v.width > MAX_W || v.height > MAX_H)) {
         return Promise.resolve({ supported: false, smooth: false, powerEfficient: false });
       }
       return di(c);
@@ -144,7 +145,7 @@
 
   // 3. Decoding just ahead of the clock, and drawing the frame that is due.
   var dec = null, frames = [], fed = 0, needKey = true, target = 0, lastNow = -1, shown = null;
-  var stats = { dec: 0, drawn: 0, late: 0, restarts: 0, ms: 0 };
+  var stats = { dec: 0, drawn: 0, late: 0, restarts: 0, skips: 0, ms: 0 };
 
   function restartAt(now) {
     stats.restarts++;
@@ -176,6 +177,12 @@
     if (!codec || !window.VideoDecoder) return;
     if (!dec || dec.state === 'closed' || Math.abs(now - lastNow) > 2e6) restartAt(now);
     lastNow = now;
+    // Fallen behind the sound: jump to the next keyframe past the clock rather than drift.
+    if (fed < chunks.length && fed > 0 && chunks[fed - 1].t < now - 500000 && !frames.length) {
+      for (var i = fed; i < chunks.length; i++) {
+        if (chunks[i].key && chunks[i].t > now) { stats.skips++; restartAt(chunks[i].t); break; }
+      }
+    }
     while (dec && fed < chunks.length && chunks[fed].t < now + 1000000 && dec.decodeQueueSize < 6 && frames.length < 16) {
       var c = chunks[fed++];
       if (needKey && !c.key) continue;
@@ -205,7 +212,7 @@
       + 'html,body{background:#000!important}';
     document.head.appendChild(css);
     canvas = document.createElement('canvas');
-    canvas.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;'
+    canvas.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;object-fit:contain;'
       + 'z-index:2147483647;pointer-events:none;background:#000';
     document.body.appendChild(canvas);
     ctx = canvas.getContext('2d');
@@ -234,12 +241,10 @@
       }
       if (pick) {
         var t0 = performance.now();
-        var w = innerWidth, h = innerHeight;
-        if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-        var fw = pick.displayWidth, fh = pick.displayHeight, sc = Math.min(w / fw, h / fh);
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, w, h);
-        ctx.drawImage(pick, (w - fw * sc) / 2, (h - fh * sc) / 2, fw * sc, fh * sc);
+        // The canvas at the video's own size, stretched by the page: every decoded pixel kept.
+        var fw = pick.displayWidth, fh = pick.displayHeight;
+        if (canvas.width !== fw || canvas.height !== fh) { canvas.width = fw; canvas.height = fh; }
+        ctx.drawImage(pick, 0, 0, fw, fh);
         if (shown) shown.close();
         shown = pick;
         stats.drawn++;
@@ -251,6 +256,7 @@
         lastLog = n;
         log('t=' + v.currentTime.toFixed(1) + ' paused=' + v.paused + ' codec=' + codec + ' chunks=' + chunks.length
           + ' decoded=' + stats.dec + ' drawn=' + stats.drawn + ' late=' + stats.late + ' restarts=' + stats.restarts
+          + ' skips=' + stats.skips
           + ' queue=' + (dec ? dec.decodeQueueSize : '-') + '/' + frames.length
           + ' drawMs=' + (stats.drawn ? (stats.ms / stats.drawn).toFixed(1) : '-')
           + ' size=' + (shown ? shown.displayWidth + 'x' + shown.displayHeight : '-')
