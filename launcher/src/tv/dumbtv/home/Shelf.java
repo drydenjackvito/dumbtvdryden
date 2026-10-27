@@ -326,7 +326,13 @@ final class Shelf extends View {
             float x = cx + (target - pos) * pitch;
             canvas.drawBitmap(glow, x - coverW / 2 - glowR, floor - coverH - glowR, glowPaint);
         }
-        for (int k = from; k <= to; k++) drawPanel(canvas, k, cx + (k - pos) * pitch, floor);
+        boolean breathing = false;
+        for (int k = from; k <= to; k++) {
+            drawPanel(canvas, k, cx + (k - pos) * pitch, floor);
+            breathing |= !Catalog.APPS.equals(kind) && Covers.glows(items.get(k));
+        }
+        // A live input's light breathes: keep drawing, at about 20 frames a second, while one shows.
+        if (breathing && !springing) postInvalidateDelayed(50);
         if (moving) {
             float x = cx + (target - pos) * pitch, out = ringGap + ringW / 2;
             box.set(x - coverW / 2 - out, floor - coverH - out, x + coverW / 2 + out, floor + out);

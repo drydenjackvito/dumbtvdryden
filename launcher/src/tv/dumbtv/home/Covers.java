@@ -124,27 +124,54 @@ final class Covers {
     }
 
     private final Paint bloom = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint socket = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint flare = new Paint(Paint.ANTI_ALIAS_FLAG);
     private float ledFor = -1;
 
     /**
-     * The "on" light, like a real LED: a pale, nearly white hot centre, vivid green round it,
-     * and a soft green bloom spilling onto the panel.
+     * The "on" light, like a real LED set into the panel: a white-hot centre and vivid green,
+     * sitting in a small socket whose upper rim is in shade and whose lower rim catches light,
+     * with a tight green bloom and a thin vertical flare that slowly breathes.
      */
     private void led(Canvas canvas, float x, float y, float r) {
         if (r != ledFor) {
             ledFor = r;
-            bloom.setShader(new android.graphics.RadialGradient(0, 0, r * 3.4f,
-                    new int[] {0x9938E05A, 0x3D38E05A, 0x0038E05A}, new float[] {0f, 0.35f, 1f},
+            bloom.setShader(new android.graphics.RadialGradient(0, 0, r * 2.2f,
+                    new int[] {0x9938E05A, 0x3338E05A, 0x0038E05A}, new float[] {0f, 0.45f, 1f},
                     android.graphics.Shader.TileMode.CLAMP));
             dot.setShader(new android.graphics.RadialGradient(0, 0, r,
                     new int[] {0xFFFFFFFF, 0xFFB8FFC2, 0xFF33E461, 0xFF1BB546}, new float[] {0f, 0.45f, 0.8f, 1f},
                     android.graphics.Shader.TileMode.CLAMP));
+            // The socket: shade at the top of the hole, light along its bottom lip.
+            socket.setShader(new android.graphics.LinearGradient(0, -r * 1.4f, 0, r * 1.4f,
+                    new int[] {0x38000000, 0x14000000, 0x00FFFFFF, 0xE6FFFFFF}, new float[] {0f, 0.45f, 0.62f, 1f},
+                    android.graphics.Shader.TileMode.CLAMP));
+            flare.setShader(new android.graphics.LinearGradient(0, -r * 7, 0, r * 7,
+                    new int[] {0x0038E05A, 0x7038E05A, 0xB0C8FFD0, 0x7038E05A, 0x0038E05A},
+                    new float[] {0f, 0.38f, 0.5f, 0.62f, 1f}, android.graphics.Shader.TileMode.CLAMP));
         }
+        // Breathing: a slow 3 s swell of the flare, and a little of the bloom.
+        float t = (android.os.SystemClock.uptimeMillis() % 3000) / 3000f;
+        float breathe = 0.5f + 0.5f * (float) Math.sin(t * Math.PI * 2);
         canvas.save();
         canvas.translate(x, y);
-        canvas.drawCircle(0, 0, r * 3.4f, bloom);
+        canvas.drawCircle(0, 0, r * 1.4f, socket);
+        bloom.setAlpha(Math.round(255 * (0.75f + 0.25f * breathe)));
+        canvas.drawCircle(0, 0, r * 2.2f, bloom);
+        // Three streaks, a bright narrow core inside wider fainter ones, so the beam feathers.
+        float strength = 0.25f + 0.75f * breathe;
+        float[][] streaks = {{0.55f, 0.18f}, {0.28f, 0.35f}, {0.1f, 0.8f}}; // half-width, strength
+        for (float[] st : streaks) {
+            flare.setAlpha(Math.round(255 * strength * st[1]));
+            canvas.drawRect(-r * st[0], -r * 7, r * st[0], r * 7, flare);
+        }
         canvas.drawCircle(0, 0, r, dot);
         canvas.restore();
+    }
+
+    /** Whether {@code it} shows the "on" light, which breathes and so needs redrawing. */
+    static boolean glows(Item it) {
+        return it.state == TvInputManager.INPUT_STATE_CONNECTED;
     }
 
     /** The two gradients, made again only when the panel height changes. */
