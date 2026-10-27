@@ -44,7 +44,7 @@ final class Shelf extends View {
     private final Paint shade = new Paint();
     private final RectF box = new RectF();
     private final android.graphics.Bitmap contactShadow;
-    private final float shadowBlur;
+    private final float shadowReach;
     private final Paint occlusion = new Paint();
 
     private List<Item> items = new ArrayList<>();
@@ -93,8 +93,8 @@ final class Shelf extends View {
         fade.setShader(new LinearGradient(0, coverH, 0, coverH + reflect, colors, stops, Shader.TileMode.CLAMP));
         flat.setColor(Ui.PAGE);
         solid.setColor(Ui.PAGE);
-        shadowBlur = Ui.dp(c, 3.5f);
-        contactShadow = underShadow(Math.round(coverW), shadowBlur, Ui.dp(c, 2.5f), radius);
+        shadowReach = Ui.dp(c, 8);
+        contactShadow = underShadow(Math.round(coverW), shadowReach, Ui.dp(c, 3), 0.38f);
         occlusion.setShader(new LinearGradient(0, coverH * 0.88f, 0, coverH, 0x00000000, 0x0B000000,
                 Shader.TileMode.CLAMP));
         contact.setFilterBitmap(true);
@@ -110,21 +110,27 @@ final class Shelf extends View {
     }
 
     /**
-     * The contact shadow: a thin dark band the panel's width (a little narrower at the ends),
-     * blurred in software so it fades on every side. Drawn centred on the panel's bottom edge,
-     * under the panel.
+     * The contact shadow, on the floor plane: it starts at the line where the panel stands and
+     * spreads only down (toward the viewer), never up. Its thickness follows a lens, deepest under
+     * the panel's middle and narrowing to a point a little past each side; it fades softly with
+     * distance from the panel. Made once, pixel by pixel.
      */
-    private static android.graphics.Bitmap underShadow(int w, float blur, float band, float radius) {
-        int pad = Math.round(blur * 5), bw = w + 2 * pad, bh = Math.round(band) + 2 * pad;
-        android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(bw, bh, android.graphics.Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(b);
-        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setColor(0x52000000);
-        p.setMaskFilter(new android.graphics.BlurMaskFilter(blur, android.graphics.BlurMaskFilter.Blur.NORMAL));
-        // Wider than the panel, so the shade runs out past both sides before it fades.
-        float out = blur * 2.3f;
-        c.drawRoundRect(new RectF(pad - out, pad, pad + w + out, pad + band), radius, band / 2, p);
-        return b;
+    private static android.graphics.Bitmap underShadow(int w, float reach, float depth, float strength) {
+        int ext = Math.round(reach), bw = w + 2 * ext, bh = Math.max(2, Math.round(depth * 2.5f));
+        int[] px = new int[bw * bh];
+        float half = bw / 2f;
+        for (int x = 0; x < bw; x++) {
+            float u = (x + 0.5f - half) / half; // -1 at the far left tip, 1 at the far right
+            float lens = (float) Math.pow(Math.max(0, 1 - u * u), 0.75);
+            float t = depth * lens;
+            if (t <= 0.05f) continue;
+            for (int y = 0; y < bh; y++) {
+                float d = (y + 0.5f) / t;
+                float a = strength * lens * (float) Math.exp(-d * d * 1.6f);
+                px[y * bw + x] = Math.round(Math.min(1, a) * 255) << 24;
+            }
+        }
+        return android.graphics.Bitmap.createBitmap(px, bw, bh, android.graphics.Bitmap.Config.ARGB_8888);
     }
 
     /**
@@ -347,10 +353,9 @@ final class Shelf extends View {
         flat.setAlpha(Math.round((1 - near) * 255));
         canvas.drawRect(-bleed, coverH, coverW + bleed, coverH + reflect, flat);
         canvas.drawRect(-bleed, coverH + reflect - 0.5f, coverW + bleed, coverH * 2, solid);
-        // The contact shadow sits under the panel: centred on its bottom edge, a little wider,
-        // so it shows below and just past the sides and the panel covers the rest.
+        // The contact shadow lies on the floor from the panel's bottom edge down.
         contact.setAlpha(Math.round(near * 255));
-        canvas.drawBitmap(contactShadow, -Math.round(shadowBlur * 5), coverH - contactShadow.getHeight() / 2f, contact);
+        canvas.drawBitmap(contactShadow, -Math.round(shadowReach), coverH, contact);
 
         canvas.save();
         canvas.clipPath(clip);
