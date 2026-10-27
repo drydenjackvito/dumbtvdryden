@@ -111,7 +111,13 @@ final class Glow extends View {
             int A = Math.min(255, Math.round(a * 255 * 0.55f));
             int R = Math.min(255, Math.round(ch[1][i] / ca)), G = Math.min(255, Math.round(ch[2][i] / ca)),
                     B = Math.min(255, Math.round(ch[3][i] / ca));
-            out[i] = (A << 24) | (R << 16) | (G << 8) | B;
+            // Light, not shadow: keep the hue, push the colour to full brightness and a little
+            // more saturation. A dark blue scene glows bright blue; a near-black one glows white.
+            float[] hsv = new float[3];
+            android.graphics.Color.RGBToHSV(R, G, B, hsv);
+            hsv[1] = Math.min(1f, hsv[1] * 1.25f);
+            hsv[2] = 1f;
+            out[i] = (A << 24) | (android.graphics.Color.HSVToColor(hsv) & 0x00FFFFFF);
         }
         return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888);
     }

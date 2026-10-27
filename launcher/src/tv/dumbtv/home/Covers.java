@@ -19,12 +19,13 @@ import java.util.Map;
 final class Covers {
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint glyph = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path port = new Path(), cast = new Path();
     private final TextPaint name = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final TextPaint label = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final Paint idle = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint liveFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private float shadedFor = -1;
     private final android.graphics.RectF bounds = new android.graphics.RectF();
     private final float pad, dotR, radius;
 
@@ -36,8 +37,6 @@ final class Covers {
         name.setTextAlign(Paint.Align.CENTER);
         name.setLetterSpacing(-0.01f);
         pad = Ui.dp(c, 12);
-        edge.setStyle(Paint.Style.STROKE);
-        edge.setColor(0x1A111114);
         glyph.setStyle(Paint.Style.STROKE);
         glyph.setColor(Ui.MUTED);
         glyph.setStrokeCap(Paint.Cap.ROUND);
@@ -72,7 +71,6 @@ final class Covers {
         label.setTypeface(Ui.MEDIUM);
         label.setTextAlign(Paint.Align.LEFT);
         label.setLetterSpacing(-0.01f);
-        idle.setColor(0xFFE6E6EB); // an input with nothing live on it: greyer than the white card
         radius = Ui.dp(c, 12); // the corner the shelf and the grid clip covers to
     }
 
@@ -101,7 +99,10 @@ final class Covers {
         // not. The icon, the same width for every panel, sits in the middle; the name, in light
         // grey, at the bottom left.
         boolean live = it.state == TvInputManager.INPUT_STATE_CONNECTED || Item.AIRPLAY.equals(it.id);
-        if (!live) canvas.drawRect(0, 0, w, h, idle);
+        // A subtle top-to-bottom gradient instead of an outline: brighter at the top, a touch
+        // deeper at the bottom, white for live inputs and grey for idle ones.
+        shade(live, h);
+        canvas.drawRect(0, 0, w, h, live ? liveFill : idle);
         Path mark = Item.AIRPLAY.equals(it.id) ? cast : port;
         mark.computeBounds(bounds, true);
         float size = h * 0.34f, scale = size / Math.max(bounds.width(), bounds.height());
@@ -116,13 +117,20 @@ final class Covers {
         label.setTextSize(h * 0.12f);
         CharSequence t = TextUtils.ellipsize(title, label, w - 2 * inset, TextUtils.TruncateAt.END);
         canvas.drawText(t, 0, t.length(), inset, h - inset, label);
-        float e = Math.max(1f, h / 150f);
-        edge.setStrokeWidth(e);
-        canvas.drawRoundRect(e / 2, e / 2, w - e / 2, h - e / 2, radius - e / 2, radius - e / 2, edge);
         if (it.state == TvInputManager.INPUT_STATE_CONNECTED) {
             float r = Math.max(dotR, h * 0.03f);
             canvas.drawCircle(w - r * 3, r * 3, r, dot);
         }
+    }
+
+    /** The two gradients, made again only when the panel height changes. */
+    private void shade(boolean live, float h) {
+        if (h == shadedFor) return;
+        shadedFor = h;
+        liveFill.setShader(new android.graphics.LinearGradient(0, 0, 0, h, 0xFFFFFFFF, 0xFFF0F0F4,
+                android.graphics.Shader.TileMode.CLAMP));
+        idle.setShader(new android.graphics.LinearGradient(0, 0, 0, h, 0xFFEBEBEF, 0xFFDEDEE4,
+                android.graphics.Shader.TileMode.CLAMP));
     }
 
     private void line(Canvas canvas, CharSequence title, float x, float baseline, float w) {
