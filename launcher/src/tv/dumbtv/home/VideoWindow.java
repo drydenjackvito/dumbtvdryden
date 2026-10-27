@@ -53,8 +53,9 @@ final class VideoWindow extends FrameLayout {
         ws.setDomStorageEnabled(true);
         web.setWebViewClient(new WebViewClient() {
             @Override
-            public void onPageFinished(WebView v, String url) {
-                if (url.contains("/embed/")) v.evaluateJavascript(script(), null);
+            public android.webkit.WebResourceResponse shouldInterceptRequest(WebView v,
+                    android.webkit.WebResourceRequest r) {
+                return embedPage(r);
             }
         });
         web.setWebChromeClient(new WebChromeClient());
@@ -64,47 +65,83 @@ final class VideoWindow extends FrameLayout {
     }
 
     /**
-     * Plays {@code id} from {@code atMs}, at {@code volume} (0 to 100). The embed page is opened
-     * on its own (not in a frame) so a script can reach its video element: each frame is copied
-     * onto a canvas over it. The TV's hardware decoder draws on the video plane the HDMI input
-     * holds, so the element itself shows black; a canvas is drawn like the rest of this window.
+     * Plays {@code id} from {@code atMs}, at {@code volume} (0 to 100), with YouTube's embed page
+     * opened on its own so the script in res/raw/tube.js can run in it first: it decodes the
+     * video in software onto a canvas (the hardware decoder's picture lands on the video plane
+     * the HDMI input holds, and shows black here).
      */
     void play(String id, long atMs, int volume) {
         ready = false;
+        startS = atMs / 1000;
         this.volume = volume;
         String url = "https://www.youtube.com/embed/" + id + "?autoplay=1&controls=0&rel=0&fs=0"
-                + "&iv_load_policy=3&playsinline=1&disablekb=1&start=" + (atMs / 1000);
+                + "&iv_load_policy=3&playsinline=1&disablekb=1&start=" + startS;
         java.util.Map<String, String> headers = new java.util.HashMap<>();
-        // YouTube refuses embeds that come from no site at all.
-        headers.put("Referer", "https://tv.dumbtv.home/");
+        headers.put("Referer", REFERER); // YouTube refuses embeds that come from no site at all
         web.loadUrl(url, headers);
         setVisibility(VISIBLE);
     }
 
-    private int volume = 100;
+    private static final String REFERER = "https://tv.dumbtv.home/";
+    private volatile long startS;
+    private volatile int volume = 100;
+    private String tube;
 
-    /** Copies the video onto a canvas each frame, hides YouTube's overlays, reports errors. */
-    private String script() {
-        return "(function(){if(window.__tb)return;window.__tb=1;"
-                + "var css=document.createElement('style');css.textContent="
-                + "'.ytp-chrome-top,.ytp-chrome-bottom,.ytp-pause-overlay,.ytp-gradient-top,"
-                + ".ytp-gradient-bottom,.ytp-watermark,.ytp-large-play-button,.ytp-spinner,"
-                + ".ytp-cued-thumbnail-overlay,.ytp-paid-content-overlay{display:none!important}"
-                + "html,body{background:#000!important}';document.head.appendChild(css);"
-                + "var c=document.createElement('canvas');c.style.cssText='position:fixed;left:0;top:0;"
-                + "width:100vw;height:100vh;z-index:2147483647;pointer-events:none;background:#000';"
-                + "document.body.appendChild(c);var x=c.getContext('2d'),last=0,told=0;"
-                + "function frame(){var v=document.querySelector('video');"
-                + "if(v){window.__v=v;if(!told){told=1;v.volume=" + volume + "/100;v.play();Tomboy.ready();}"
-                + "if(c.width!=innerWidth){c.width=innerWidth;c.height=innerHeight;}"
-                + "try{x.drawImage(v,0,0,c.width,c.height);}catch(e){}"
-                + "var n=Date.now();if(n-last>3000){last=n;try{var d=x.getImageData(c.width>>1,c.height>>1,1,1).data;"
-                + "Tomboy.log('t='+v.currentTime.toFixed(1)+' paused='+v.paused+' px='+d[0]+','+d[1]+','+d[2]);}"
-                + "catch(e){Tomboy.log('read '+e);}}}"
-                + "var er=document.querySelector('.ytp-error');if(er&&er.offsetParent&&!window.__err){window.__err=1;"
-                + "Tomboy.log('error: '+er.innerText.slice(0,80));Tomboy.error(150);}"
-                + "requestAnimationFrame(frame);}requestAnimationFrame(frame);})();";
+    /**
+     * The embed page, fetched here with the script put first in its head; null for every other
+     * request, which the web view makes as usual. Runs on the web view's network thread.
+     */
+    private android.webkit.WebResourceResponse embedPage(android.webkit.WebResourceRequest r) {
+        android.net.Uri u = r.getUrl();
+        if (!"GET".equals(r.getMethod()) || !r.isForMainFrame() || !"www.youtube.com".equals(u.getHost())
+                || u.getPath() == null || !u.getPath().startsWith("/embed/")) {
+            return null;
+        }
+        try {
+            java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(u.toString()).openConnection();
+            for (java.util.Map.Entry<String, String> h : r.getRequestHeaders().entrySet()) {
+                // Compression is left to the connection, which undoes only what it asked for.
+                if (!"accept-encoding".equalsIgnoreCase(h.getKey())) c.setRequestProperty(h.getKey(), h.getValue());
+            }
+            c.setRequestProperty("Referer", REFERER);
+            String cookies = android.webkit.CookieManager.getInstance().getCookie(u.toString());
+            if (cookies != null) c.setRequestProperty("Cookie", cookies);
+            c.setConnectTimeout(10000);
+            c.setReadTimeout(15000);
+            if (c.getResponseCode() != 200) return null;
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            try (java.io.InputStream in = c.getInputStream()) {
+                byte[] buf = new byte[16384];
+                for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);
+            }
+            String html = new String(out.toByteArray(), "UTF-8");
+            String script = "<script>" + script() + "</script>";
+            int head = html.toLowerCase(java.util.Locale.ROOT).indexOf("<head>");
+            html = head < 0 ? script + html : html.substring(0, head + 6) + script + html.substring(head + 6);
+            java.util.Map<String, String> headers = new java.util.HashMap<>();
+            headers.put("Cache-Control", "no-store");
+            return new android.webkit.WebResourceResponse("text/html", "utf-8", 200, "OK", headers,
+                    new java.io.ByteArrayInputStream(html.getBytes("UTF-8")));
+        } catch (java.io.IOException | RuntimeException e) {
+            android.util.Log.w("dumbtv", "video: embed page", e);
+            return null; // the web view fetches it itself: no picture, but the sound plays
+        }
     }
+
+    private synchronized String script() {
+        if (tube == null) {
+            try (java.io.InputStream in = getResources().openRawResource(R.raw.tube)) {
+                java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);
+                tube = new String(out.toByteArray(), "UTF-8");
+            } catch (java.io.IOException e) {
+                tube = "";
+            }
+        }
+        return tube.replace("__START__", String.valueOf(startS)).replace("__VOL__", String.valueOf(volume));
+    }
+
     boolean showing() {
         return getVisibility() == VISIBLE;
     }
