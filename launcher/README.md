@@ -61,7 +61,7 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   equalizer on the music app's own audio session, so the game's sound stays as it was and
   the TV's volume stays the master. It catches the session when the music app announces it
   for equalizers; when none was heard it falls back to the output mix. Leaving the input
-  puts the music back to full. This needs MODIFY_AUDIO_SETTINGS, a normal permission. A card with the album art, song, artist and volume slides
+  puts the music back to full. This needs MODIFY_AUDIO_SETTINGS, a normal permission. A frosted glass card with the square album art and the song and artist scrolling under it (the ceiling bar while channel ▲ ▼ are pressed) slides
   in at the bottom right and leaves after five seconds; it also shows when the song
   changes. It needs notification access for `tv.dumbtv.home/.Listener`, which install.sh
   grants (the listener reads no notifications). Options › Music over inputs turns it off.

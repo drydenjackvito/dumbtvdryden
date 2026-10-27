@@ -231,6 +231,7 @@ public final class Input extends Activity {
                         ceiling.apply(music.app(), ceilingDb);
                         Config.get(this).set(Ceiling.KEY, String.valueOf(ceilingDb));
                         showPlayer();
+                        player.ceiling();
                     }
                     return true;
                 case KeyEvent.KEYCODE_MENU:
