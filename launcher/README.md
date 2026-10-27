@@ -67,6 +67,11 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   grants (the listener reads no notifications). Options › Music over inputs turns it off.
   Options › Mini-player: **On changes** (a few seconds after a press or a new song) or
   **Always**; Mini-player size: Small, Medium, Large; Mini-player position: any corner.
+- **SmartTube over a game.** On an input, ☰ opens SmartTube (any build: it is found by
+  name). Pick a video, press Home Home: SmartTube shrinks to picture-in-picture (set its
+  background playback to picture-in-picture) and the input comes back under it. The media
+  keys and channel ▲ ▼ work on the video; the music card stays out of its way (ⓘ shows it).
+  Without SmartTube, ☰ shows the music card as before.
 - **Home twice.** From another app, pressing Home twice within a few seconds goes straight
   back to the input last shown: pick music in Spotify, Home Home, and the game is back with
   the music over it. Options › Home twice › Home screen turns it off.

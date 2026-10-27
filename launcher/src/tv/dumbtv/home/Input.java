@@ -183,7 +183,7 @@ public final class Input extends Activity {
                     ui.removeCallbacks(hidePlayer);
                     player.conceal();
                 } else if (changedSong || started || (always && player.getVisibility() != View.VISIBLE)) {
-                    showPlayer();
+                    autoShowPlayer();
                 }
             });
         }
@@ -203,7 +203,7 @@ public final class Input extends Activity {
         remember(this, id, getIntent().getCharSequenceExtra(EXTRA_NAME));
         wasPlaying = musicOn;
         if (musicOn) {
-            if (always) showPlayer();
+            if (always) autoShowPlayer();
             capMusic();
         }
         // Taking audio focus stops other apps' sound; with music playing, it is left alone so the
@@ -277,7 +277,6 @@ public final class Input extends Activity {
                         player.ceiling();
                     }
                     return true;
-                case KeyEvent.KEYCODE_MENU:
                 case KeyEvent.KEYCODE_INFO:
                     if (down) showPlayer();
                     return true;
@@ -290,8 +289,20 @@ public final class Input extends Activity {
                 if (e.getAction() == KeyEvent.ACTION_UP) finish();
                 return true;
             case KeyEvent.KEYCODE_MENU:
+                // Menu: off to SmartTube to pick a video. Leaving it (HOME) shrinks it to
+                // picture-in-picture, and HOME twice brings this input back under it.
+                if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
+                    Intent tube = videoApp(this);
+                    if (tube != null) startActivity(tube);
+                    else if (music != null && music.has()) showPlayer();
+                    else showName();
+                }
+                return true;
             case KeyEvent.KEYCODE_INFO:
-                if (e.getAction() == KeyEvent.ACTION_DOWN) showName();
+                if (e.getAction() == KeyEvent.ACTION_DOWN) {
+                    if (music != null && music.has()) showPlayer();
+                    else showName();
+                }
                 return true;
             default:
                 return super.dispatchKeyEvent(e);
@@ -302,6 +313,35 @@ public final class Input extends Activity {
         if (music == null) return;
         player.set(music.title(), music.artist(), music.art(), music.playing());
         player.level(1f - ceilingDb / (float) Ceiling.FLOOR_DB);
+    }
+
+    /**
+     * SmartTube's launch intent, whichever of its builds is installed (found by name, as its
+     * package differs between stable, beta and older builds); null without it.
+     */
+    static Intent videoApp(Context c) {
+        android.content.pm.PackageManager pm = c.getPackageManager();
+        for (String cat : new String[] {Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER}) {
+            Intent q = new Intent(Intent.ACTION_MAIN).addCategory(cat);
+            for (ResolveInfo r : pm.queryIntentActivities(q, 0)) {
+                String pkg = r.activityInfo.packageName;
+                if (!pkg.toLowerCase(java.util.Locale.ROOT).contains("smarttube")) continue;
+                return new Intent(q).setClassName(pkg, r.activityInfo.name)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+            }
+        }
+        return null;
+    }
+
+    /** Whether the playing app shows its own picture (SmartTube in picture-in-picture). */
+    private boolean videoPlaying() {
+        String app = music == null ? null : music.app();
+        return app != null && app.toLowerCase(java.util.Locale.ROOT).contains("smarttube");
+    }
+
+    /** The card on its own accord: not over a video that is already on screen. */
+    private void autoShowPlayer() {
+        if (!videoPlaying()) showPlayer();
     }
 
     private void showPlayer() {
