@@ -7,6 +7,7 @@
   if (window.__tb) return;
   window.__tb = 1;
   var START = __START__, VOL = __VOL__, MAX_W = 640, MAX_H = 360;
+  var stats = { dec: 0, drawn: 0, late: 0, restarts: 0, skips: 0, ms: 0 };
   function log(s) { try { Tomboy.log(s); } catch (e) {} }
 
   // 1. Steer YouTube to VP9 (the software decoder's codec) at 360p or less: the TV's processor
@@ -37,6 +38,19 @@
         return Promise.resolve({ supported: false, smooth: false, powerEfficient: false });
       }
       return di(c);
+    };
+  }
+
+  // YouTube lowers the quality when the player drops frames. Its own (unseen) player drops none,
+  // so it is told the frames this one could not show in time.
+  var gq = HTMLVideoElement.prototype.getVideoPlaybackQuality;
+  if (gq) {
+    HTMLVideoElement.prototype.getVideoPlaybackQuality = function () {
+      var q = gq.call(this);
+      if (!codec) return q;
+      var total = Math.max(q.totalVideoFrames, stats.drawn + stats.late);
+      return { totalVideoFrames: total, droppedVideoFrames: stats.late, corruptedVideoFrames: 0,
+        creationTime: q.creationTime, totalFrameDelay: q.totalFrameDelay || 0 };
     };
   }
 
@@ -145,8 +159,7 @@
 
   // 3. Decoding just ahead of the clock, and drawing the frame that is due.
   var dec = null, frames = [], fed = 0, needKey = true, target = 0, lastNow = -1, shown = null;
-  var stats = { dec: 0, drawn: 0, late: 0, restarts: 0, skips: 0, ms: 0 };
-
+  var lastOut = -1, lastSkip = 0;
   function restartAt(now) {
     stats.restarts++;
     if (dec) { try { dec.close(); } catch (e) {} }
@@ -155,7 +168,8 @@
     if (!codec || !window.VideoDecoder) { dec = null; return; }
     dec = new VideoDecoder({
       output: function (f) {
-        if (f.timestamp < target - 40000) { f.close(); return; } // decoded only to reach the target
+        lastOut = f.timestamp;
+        if (f.timestamp < target - 40000) { f.close(); stats.late++; return; } // only to reach the target
         frames.push(f);
         stats.dec++;
       },
@@ -164,6 +178,7 @@
     dec.configure({ codec: codec, hardwareAcceleration: 'prefer-software', optimizeForLatency: true });
     needKey = true;
     target = now;
+    lastOut = -1;
     var k = -1, i;
     for (i = 0; i < chunks.length; i++) {
       if (chunks[i].t > now) break;
@@ -177,10 +192,12 @@
     if (!codec || !window.VideoDecoder) return;
     if (!dec || dec.state === 'closed' || Math.abs(now - lastNow) > 2e6) restartAt(now);
     lastNow = now;
-    // Fallen behind the sound: jump to the next keyframe past the clock rather than drift.
-    if (fed < chunks.length && fed > 0 && chunks[fed - 1].t < now - 500000 && !frames.length) {
+    // Fallen behind the sound: feed from the next keyframe past the clock, with the same decoder
+    // (a new one takes a while to get going, and would only fall behind again).
+    var n = performance.now();
+    if (lastOut >= 0 && lastOut < now - 700000 && n - lastSkip > 2000) {
       for (var i = fed; i < chunks.length; i++) {
-        if (chunks[i].key && chunks[i].t > now) { stats.skips++; restartAt(chunks[i].t); break; }
+        if (chunks[i].key && chunks[i].t > now) { fed = i; target = chunks[i].t; lastSkip = n; stats.skips++; break; }
       }
     }
     while (dec && fed < chunks.length && chunks[fed].t < now + 1000000 && dec.decodeQueueSize < 6 && frames.length < 16) {
