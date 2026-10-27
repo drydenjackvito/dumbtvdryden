@@ -113,6 +113,7 @@ final class Tile extends View {
         covers.draw(canvas, item, kind, title, cardW, cardH);
         if (moving) canvas.drawColor(0xB3F5F5F7);
         canvas.restore();
+        covers.flare(canvas, item, cardW, cardH);
         if (isFocused() || moving) {
             float out = ringGap + ringW / 2;
             box.set(-out, -out, cardW + out, cardH + out);

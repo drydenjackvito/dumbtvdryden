@@ -131,7 +131,7 @@ final class Covers {
     /**
      * The "on" light, like a real LED set into the panel: a white-hot centre and vivid green,
      * sitting in a small socket whose upper rim is in shade and whose lower rim catches light,
-     * with a tight green bloom and a thin vertical flare that slowly breathes.
+     * with a tight green bloom; its flare is drawn over the panel by {@link #flare}.
      */
     private void led(Canvas canvas, float x, float y, float r) {
         if (r != ledFor) {
@@ -158,14 +158,30 @@ final class Covers {
         canvas.drawCircle(0, 0, r * 1.4f, socket);
         bloom.setAlpha(Math.round(255 * (0.75f + 0.25f * breathe)));
         canvas.drawCircle(0, 0, r * 2.2f, bloom);
-        // Three streaks, a bright narrow core inside wider fainter ones, so the beam feathers.
+        canvas.drawCircle(0, 0, r, dot);
+        canvas.restore();
+    }
+
+    /**
+     * The LED's flare, drawn over the panel rather than within it, so the beam runs past the
+     * panel's edges. A thin beam at 35 degrees from the horizontal: three streaks, a bright narrow
+     * core inside wider fainter ones, so it feathers; it swells and fades with the LED's breath.
+     */
+    void flare(Canvas canvas, Item it, float w, float h) {
+        if (!glows(it)) return;
+        float r = Math.max(dotR, h * 0.03f);
+        if (r != ledFor) return; // the face, drawn first, sets the shaders up
+        float t = (android.os.SystemClock.uptimeMillis() % 3000) / 3000f;
+        float breathe = 0.5f + 0.5f * (float) Math.sin(t * Math.PI * 2);
         float strength = 0.25f + 0.75f * breathe;
+        canvas.save();
+        canvas.translate(w - r * 3.2f, r * 3.2f);
+        canvas.rotate(55); // the vertical beam turned to 35 degrees above the horizontal
         float[][] streaks = {{0.55f, 0.18f}, {0.28f, 0.35f}, {0.1f, 0.8f}}; // half-width, strength
         for (float[] st : streaks) {
             flare.setAlpha(Math.round(255 * strength * st[1]));
             canvas.drawRect(-r * st[0], -r * 7, r * st[0], r * 7, flare);
         }
-        canvas.drawCircle(0, 0, r, dot);
         canvas.restore();
     }
 

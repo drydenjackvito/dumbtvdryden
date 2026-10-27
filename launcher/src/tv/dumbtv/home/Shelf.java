@@ -370,6 +370,7 @@ final class Shelf extends View {
         canvas.drawRect(0, coverH * 0.88f, coverW, coverH, occlusion);
         if (moving && k == target) canvas.drawRect(0, 0, coverW, coverH, shade);
         canvas.restore();
+        covers.flare(canvas, it, coverW, coverH); // over the panel, free of its clip
         if (moving && k == target) drawArrows(canvas);
         canvas.restore();
     }
