@@ -17,7 +17,7 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
 - **Top bar.** ☰, "Tomboy" (`Home.WORDMARK`), then **Apps** (every app as a grid)
   and **Settings** (Fire TV's settings) at the left; the clock in light grey at the
   right. ☰ opens a menu: Options and Amazon's home screen. The margin round the
-  screen is the same at the sides as at the top.
+  screen (28 dp) is the same at the top, the sides and under the panels.
 - **Panels.** A row of equal panels at the bottom, one margin up from the screen
   edge with the reflection fading past it, that slides as you move, the selected one in the middle, each standing on a reflective floor. No
   titles or text around them.
@@ -37,6 +37,10 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   the window it opens in home.conf as `guard.replace=package/class` (read it off the
   TV with `adb shell dumpsys window | grep mCurrentFocus` while that screen shows), and
   Guard replaces it with this home screen, as it does Amazon's home.
+- **Greeting.** "Good morning", "Good afternoon" or "Good evening" in light grey in
+  the middle of the screen whenever the home screen comes up, until the first press on
+  the remote; then the preview takes its place. Add a name with `greeting.name=` in
+  home.conf.
 - **Live preview.** Above the panels, the selected input's picture fades in once it
   arrives, muted, after the selection rests for half a second. A device that is
   off shows nothing. For an app, its banner fades in. Options › Input preview turns

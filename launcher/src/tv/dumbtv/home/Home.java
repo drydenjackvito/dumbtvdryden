@@ -63,6 +63,9 @@ public final class Home extends Activity {
     private IconButton menuBtn, appsBtn, settingsBtn;
     private TextView clock;
     private Preview preview;
+    /** The greeting in the middle of the screen, until the first press on the remote. */
+    private TextView greeting;
+    private boolean greeted;
     private LinearLayout home;
     private Shelf apps, inputs;
     private TextView empty;
@@ -123,7 +126,7 @@ public final class Home extends Activity {
 
         @Override
         public void selected(Shelf shelf, Item item) {
-            if (resumed && pageKind == null) {
+            if (resumed && pageKind == null && greeted) {
                 preview.show(item, shelf.kind, "on".equals(cfg.get(Config.PREVIEW)));
             }
         }
@@ -189,6 +192,28 @@ public final class Home extends Activity {
         f.addAction(Intent.ACTION_TIMEZONE_CHANGED);
         registerReceiver(time, f);
         tick();
+        greet();
+    }
+
+    /** Shows the greeting; the preview waits behind it until the first press. */
+    private void greet() {
+        int hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY);
+        String part = hour >= 5 && hour < 12 ? "Good morning" : hour >= 12 && hour < 17 ? "Good afternoon"
+                : "Good evening";
+        String name = cfg.get("greeting.name", "");
+        greeting.setText(name.isEmpty() ? part : part + ", " + name);
+        greeting.animate().cancel();
+        greeting.setAlpha(1f);
+        greeting.setVisibility(pageKind == null ? View.VISIBLE : View.GONE);
+        greeted = false;
+        preview.stop();
+    }
+
+    /** The first press: the greeting fades and the selected panel's preview takes its place. */
+    private void ungreet() {
+        if (greeted) return;
+        greeted = true;
+        greeting.animate().alpha(0f).setDuration(250).withEndAction(() -> greeting.setVisibility(View.GONE)).start();
         View focus = getCurrentFocus();
         if (focus instanceof Shelf && ((Shelf) focus).current() != null) {
             shelfListener.selected((Shelf) focus, ((Shelf) focus).current());
@@ -243,6 +268,7 @@ public final class Home extends Activity {
         if (resumed) {
             closePage(false);
             focusFirst(true);
+            greet();
         }
     }
 
@@ -254,6 +280,7 @@ public final class Home extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
+        if (!greeted && e.getAction() == KeyEvent.ACTION_DOWN) ui.post(this::ungreet);
         if (movingTile == null) return super.dispatchKeyEvent(e);
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
             switch (e.getKeyCode()) {
@@ -294,6 +321,10 @@ public final class Home extends Activity {
         root.setBackgroundColor(Ui.PAGE);
         preview = new Preview(this);
         root.addView(preview, new FrameLayout.LayoutParams(0, 0));
+        greeting = Ui.text(this, 40, 0xFFB4B4BC, Ui.REGULAR);
+        greeting.setLetterSpacing(-0.02f);
+        greeting.setGravity(Gravity.CENTER);
+        root.addView(greeting, new FrameLayout.LayoutParams(0, 0));
 
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
@@ -407,6 +438,15 @@ public final class Home extends Activity {
             preview.setLayoutParams(lp);
         }
         preview.setVisibility(room ? View.VISIBLE : View.INVISIBLE);
+        // The greeting takes the preview's place, between the top bar and the panels.
+        FrameLayout.LayoutParams g = (FrameLayout.LayoutParams) greeting.getLayoutParams();
+        int gh = Math.max(0, bottom - top);
+        if (g.width != root.getWidth() || g.height != gh || g.topMargin != top) {
+            g.width = root.getWidth();
+            g.height = gh;
+            g.topMargin = top;
+            greeting.setLayoutParams(g);
+        }
     }
 
     private int topIn(View v) {
@@ -418,19 +458,19 @@ public final class Home extends Activity {
         return y;
     }
 
-    /** The margin round the screen, the same at the sides as at the top. */
+    /** The margin round the screen: the same at the top, the sides and under the panels. */
     private int gutter() {
-        return dp(40);
+        return dp(28);
     }
 
     private int panelHeight() {
         switch (cfg.get(Config.TILES)) {
             case "small":
-                return 108;
+                return 81;
             case "large":
-                return 153;
-            default:
                 return 126;
+            default:
+                return 99;
         }
     }
 
