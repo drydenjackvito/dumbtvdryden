@@ -13,8 +13,10 @@ import android.view.View;
  * frame about twice a second; it eases between them.
  */
 final class Glow extends View {
-    /** Reach past the 32x18 frame, in sample pixels: wide at the sides, less above. */
-    static final int PAD_X = 10, PAD_Y = 6;
+    /** The frame is reduced to this before blurring. */
+    static final int SAMPLE_W = 64, SAMPLE_H = 36;
+    /** Reach past the frame, in sample pixels: about 30 dp on a 528 dp preview. */
+    static final int PAD_X = 4, PAD_Y = 4;
     private final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final Rect dst = new Rect();
     private Bitmap shown;
@@ -25,9 +27,9 @@ final class Glow extends View {
         setFocusable(false);
     }
 
-    /** A new frame (any size; it is reduced to 32x18 first). */
+    /** A new frame (any size; it is reduced to SAMPLE_W x SAMPLE_H first). */
     void feed(Bitmap frame) {
-        Bitmap small = Bitmap.createScaledBitmap(frame, 32, 18, true);
+        Bitmap small = Bitmap.createScaledBitmap(frame, SAMPLE_W, SAMPLE_H, true);
         shown = blur(small);
         invalidate();
         if (getAlpha() < 1f) animate().alpha(1f).setDuration(600).start();
@@ -35,7 +37,7 @@ final class Glow extends View {
 
     /** No colours to go on (the TV would not share the frame): a soft neutral glow. */
     void neutral() {
-        Bitmap b = Bitmap.createBitmap(32, 18, Bitmap.Config.ARGB_8888);
+        Bitmap b = Bitmap.createBitmap(SAMPLE_W, SAMPLE_H, Bitmap.Config.ARGB_8888);
         b.eraseColor(0xFFFFFFFF);
         feed(b);
     }
@@ -69,9 +71,9 @@ final class Glow extends View {
             }
         }
         float[] tmp = new float[w * h];
-        int r = 3;
+        int r = 2;
         for (float[] c : ch) {
-            for (int pass = 0; pass < 3; pass++) {
+            for (int pass = 0; pass < 2; pass++) {
                 for (int y = 0; y < h; y++) {
                     for (int x = 0; x < w; x++) {
                         float sum = 0;
@@ -99,7 +101,7 @@ final class Glow extends View {
         int bottom = PAD_Y + src.getHeight();
         float[] colourAlpha = ch[0].clone();
         for (int y = 0; y < h; y++) {
-            float k = y < bottom - 5 ? 1 : y >= bottom ? 0 : (bottom - y) / 5f;
+            float k = y < bottom - 6 ? 1 : y >= bottom ? 0 : (bottom - y) / 6f;
             for (int x = 0; x < w; x++) ch[0][y * w + x] *= k;
         }
         int[] out = new int[w * h];

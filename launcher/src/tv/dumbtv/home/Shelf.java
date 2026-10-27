@@ -73,7 +73,7 @@ final class Shelf extends View {
         radius = Ui.dp(c, 12);
         ringGap = Ui.dp(c, 3);
         ringW = Ui.dp(c, 1.75f);
-        glowR = Ui.dp(c, 18);
+        glowR = Ui.dp(c, 10);
         top = glowR;
         glow = focusGlow(Math.round(coverW), Math.round(coverH), radius, glowR);
         clip.addRoundRect(new RectF(0, 0, coverW, coverH), radius, radius, Path.Direction.CW);

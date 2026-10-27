@@ -462,7 +462,7 @@ public final class Home extends Activity {
         preview.setVisibility(room ? View.VISIBLE : View.INVISIBLE);
         // The glow: the preview's rectangle, spread by the glow's padding.
         FrameLayout.LayoutParams gl = (FrameLayout.LayoutParams) glow.getLayoutParams();
-        int ex = Math.round(w * Glow.PAD_X / 32f), ey = Math.round(h * Glow.PAD_Y / 18f);
+        int ex = Math.round(w * Glow.PAD_X / (float) Glow.SAMPLE_W), ey = Math.round(h * Glow.PAD_Y / (float) Glow.SAMPLE_H);
         int gw = room ? w + 2 * ex : 0, ghh = room ? h + 2 * ey : 0;
         if (gl.width != gw || gl.height != ghh || gl.leftMargin != left - ex || gl.topMargin != y - ey) {
             gl.width = gw;
