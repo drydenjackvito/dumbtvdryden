@@ -374,14 +374,16 @@ public final class Home extends Activity {
         bar.addView(menuBtn);
         TextView word = Ui.title(this, 32);
         word.setText(WORDMARK);
-        float wordSize = fitWord(word, dp(52));
+        // 44 sp: the word, "y" included, about fills the buttons' height.
+        float wordSize = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 44,
+                getResources().getDisplayMetrics());
         LinearLayout.LayoutParams wordLp = centreInk(word, wordSize, WORDMARK, dp(52));
-        wordLp.leftMargin = dp(18);
+        wordLp.leftMargin = dp(12); // the same space as between the buttons
         bar.addView(word, wordLp);
         appsBtn = new IconButton(this, IconButton.APPS, "Apps");
         appsBtn.setOnClickListener(v -> openPage(Catalog.APPS, v));
         LinearLayout.LayoutParams after = new LinearLayout.LayoutParams(WRAP, WRAP);
-        after.leftMargin = dp(22);
+        after.leftMargin = dp(12);
         bar.addView(appsBtn, after);
         settingsBtn = new IconButton(this, IconButton.SETTINGS, "Settings");
         settingsBtn.setOnClickListener(v -> openSettings());
@@ -491,19 +493,6 @@ public final class Home extends Activity {
             g.topMargin = top;
             greeting.setLayoutParams(g);
         }
-    }
-
-    /**
-     * Sizes the wordmark so the whole word, from the top of its tallest letter to the bottom of
-     * its "y", fits the buttons' height, and returns its layout. The clock takes the same size.
-     */
-    private static float fitWord(TextView v, int height) {
-        android.graphics.Paint p = new android.graphics.Paint(v.getPaint());
-        p.setTextSize(100);
-        android.graphics.Rect r = new android.graphics.Rect();
-        String text = v.getText().toString();
-        p.getTextBounds(text, 0, text.length(), r);
-        return 100f * height / Math.max(1, r.height());
     }
 
     /**

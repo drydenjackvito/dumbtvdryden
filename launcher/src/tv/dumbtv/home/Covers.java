@@ -119,8 +119,32 @@ final class Covers {
         canvas.drawText(t, 0, t.length(), inset, h - inset, label);
         if (it.state == TvInputManager.INPUT_STATE_CONNECTED) {
             float r = Math.max(dotR, h * 0.03f);
-            canvas.drawCircle(w - r * 3, r * 3, r, dot);
+            led(canvas, w - r * 3.2f, r * 3.2f, r);
         }
+    }
+
+    private final Paint bloom = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private float ledFor = -1;
+
+    /**
+     * The "on" light, like a real LED: a pale, nearly white hot centre, vivid green round it,
+     * and a soft green bloom spilling onto the panel.
+     */
+    private void led(Canvas canvas, float x, float y, float r) {
+        if (r != ledFor) {
+            ledFor = r;
+            bloom.setShader(new android.graphics.RadialGradient(0, 0, r * 3.4f,
+                    new int[] {0x9938E05A, 0x3D38E05A, 0x0038E05A}, new float[] {0f, 0.35f, 1f},
+                    android.graphics.Shader.TileMode.CLAMP));
+            dot.setShader(new android.graphics.RadialGradient(0, 0, r,
+                    new int[] {0xFFFFFFFF, 0xFFB8FFC2, 0xFF33E461, 0xFF1BB546}, new float[] {0f, 0.45f, 0.8f, 1f},
+                    android.graphics.Shader.TileMode.CLAMP));
+        }
+        canvas.save();
+        canvas.translate(x, y);
+        canvas.drawCircle(0, 0, r * 3.4f, bloom);
+        canvas.drawCircle(0, 0, r, dot);
+        canvas.restore();
     }
 
     /** The two gradients, made again only when the panel height changes. */
