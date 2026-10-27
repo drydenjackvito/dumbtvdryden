@@ -115,6 +115,27 @@ public final class Input extends Activity {
         cfg.set(LAST_NAME, name == null ? "" : name.toString());
     }
 
+    private static final String DETOUR = "detour.at";
+    private static final long DETOUR_MS = 30 * 60 * 1000;
+
+    /**
+     * Whether Menu sent the viewer from this screen to another app (to pick music or a video)
+     * not long ago: HOME then comes straight back here. Asking uses it up.
+     */
+    static boolean onDetour(Context c) {
+        Config cfg = Config.get(c);
+        long at;
+        try {
+            at = Long.parseLong(cfg.get(DETOUR, "0"));
+        } catch (NumberFormatException e) {
+            at = 0;
+        }
+        if (at == 0) return false;
+        cfg.set(DETOUR, "0");
+        long ago = System.currentTimeMillis() - at;
+        return ago >= 0 && ago < DETOUR_MS;
+    }
+
     /** The input last shown on this screen, opened again; null when there was none. */
     static Intent last(Context c) {
         Config cfg = Config.get(c);
@@ -201,6 +222,7 @@ public final class Input extends Activity {
         }
         boolean musicOn = music != null && music.start() && music.anyPlaying();
         remember(this, id, getIntent().getCharSequenceExtra(EXTRA_NAME));
+        Config.get(this).set(DETOUR, "0"); // back on the input: no detour pending
         wasPlaying = musicOn;
         if (musicOn) {
             if (always) autoShowPlayer();
@@ -297,8 +319,10 @@ public final class Input extends Activity {
                     if (!opened) {
                         Intent tube = videoApp(this);
                         if (tube != null) startActivity(tube);
-                        else showName();
+                        opened = tube != null;
                     }
+                    if (opened) Config.get(this).set(DETOUR, String.valueOf(System.currentTimeMillis()));
+                    else showName();
                 }
                 return true;
             case KeyEvent.KEYCODE_INFO:

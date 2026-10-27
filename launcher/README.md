@@ -69,6 +69,8 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   **Always**; Mini-player size: Small, Medium, Large; Mini-player position: any corner.
 - **☰ on an input** opens the app the music card shows (Spotify, SmartTube), on its
   now-playing screen; with nothing playing, SmartTube (any build: it is found by name).
+  One Home from there goes straight back to the input (Options › Home twice › Home
+  screen turns that off too).
 - **SmartTube over a game.** Pick a video, press Home Home: SmartTube shrinks to picture-in-picture (set its
   background playback to picture-in-picture) and the input comes back under it. The media
   keys and channel ▲ ▼ work on the video; the music card stays out of its way (ⓘ shows it).

@@ -57,7 +57,7 @@ public final class Home extends Activity {
     private Covers covers;
     private int applied = -1, appsGeneration;
     private boolean resumed, landed;
-    private static final long HOME_TWICE_MS = 2500;
+    private static final long HOME_TWICE_MS = 4000;
     /** When HOME last brought this screen back from another app; 0 when it did not. */
     private long homeFromAway;
     private static final long AWAY_MS = 1500;
@@ -226,6 +226,8 @@ public final class Home extends Activity {
         registerReceiver(time, f);
         tick();
         greet();
+        backFromDetour(); // after the setup above, which onPause undoes
+        wasAway = false;
     }
 
     /** Shows the greeting; the preview waits behind it until the first press. */
@@ -298,6 +300,23 @@ public final class Home extends Activity {
         }
     }
 
+    /**
+     * Back from an app that Menu on an input sent the viewer to: straight on to that input.
+     * Runs from onNewIntent, or from onResume when HOME brought this screen back without one.
+     */
+    private boolean backFromDetour() {
+        if (!wasAway) return false;
+        boolean detour = Input.onDetour(this);
+        android.util.Log.i("dumbtv", "home from away: detour=" + detour);
+        if (!detour || !"game".equals(cfg.get(Config.HOME_TWICE))) return false;
+        Intent back = Input.last(this);
+        if (back == null) return false;
+        wasAway = false;
+        homeFromAway = 0;
+        startActivity(back);
+        return true;
+    }
+
     /** HOME while the home screen is showing: back to the first panel. */
     @Override
     protected void onNewIntent(Intent intent) {
@@ -305,12 +324,17 @@ public final class Home extends Activity {
         // HOME twice from another app: straight back to the input last shown (the game, with
         // music picked in Spotify). The first press, from away, only arms it.
         long now = android.os.SystemClock.uptimeMillis();
+        boolean backToGame = "game".equals(cfg.get(Config.HOME_TWICE));
+        // Menu on an input sent the viewer off to pick music or a video: one HOME comes back.
+        android.util.Log.i("dumbtv", "home intent: away=" + wasAway
+                + " sinceArmed=" + (homeFromAway == 0 ? -1 : now - homeFromAway));
+        if (backFromDetour()) return;
         boolean twice = homeFromAway != 0 && now - homeFromAway < HOME_TWICE_MS;
         // Away means hidden for a while, in another app; Amazon's home flashing over this one on
         // the second press hides it only for a moment.
         homeFromAway = !twice && wasAway ? now : 0;
         wasAway = false;
-        if (twice && "game".equals(cfg.get(Config.HOME_TWICE))) {
+        if (twice && backToGame) {
             Intent back = Input.last(this);
             if (back != null) {
                 homeFromAway = 0;
