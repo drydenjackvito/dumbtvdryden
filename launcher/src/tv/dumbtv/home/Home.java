@@ -374,7 +374,8 @@ public final class Home extends Activity {
         bar.addView(menuBtn);
         TextView word = Ui.title(this, 32);
         word.setText(WORDMARK);
-        LinearLayout.LayoutParams wordLp = capsAsTall(word, "T", dp(52));
+        float wordSize = fitWord(word, dp(52));
+        LinearLayout.LayoutParams wordLp = centreInk(word, wordSize, WORDMARK, dp(52));
         wordLp.leftMargin = dp(18);
         bar.addView(word, wordLp);
         appsBtn = new IconButton(this, IconButton.APPS, "Apps");
@@ -390,7 +391,7 @@ public final class Home extends Activity {
         bar.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
         clock = Ui.text(this, 36, CLOCK, Ui.SEMIBOLD);
         clock.setLetterSpacing(-0.02f);
-        bar.addView(clock, capsAsTall(clock, "0", dp(52)));
+        bar.addView(clock, centreInk(clock, wordSize, "0", dp(52)));
         for (View b : new View[] {menuBtn, appsBtn, settingsBtn}) b.setId(View.generateViewId());
         column.addView(bar, new LinearLayout.LayoutParams(MATCH, WRAP));
 
@@ -493,26 +494,34 @@ public final class Home extends Activity {
     }
 
     /**
-     * Sizes {@code v} so its capitals (or digits) stand exactly {@code height} tall, lined up
-     * with the top bar's buttons, without making the bar taller: the text box keeps the
-     * buttons' height and the letters are moved so the capitals sit centred on the row.
+     * Sizes the wordmark so the whole word, from the top of its tallest letter to the bottom of
+     * its "y", fits the buttons' height, and returns its layout. The clock takes the same size.
      */
-    private static LinearLayout.LayoutParams capsAsTall(TextView v, String sample, int height) {
+    private static float fitWord(TextView v, int height) {
         android.graphics.Paint p = new android.graphics.Paint(v.getPaint());
         p.setTextSize(100);
         android.graphics.Rect r = new android.graphics.Rect();
-        p.getTextBounds(sample, 0, sample.length(), r);
-        float size = 100f * height / Math.max(1, r.height());
+        String text = v.getText().toString();
+        p.getTextBounds(text, 0, text.length(), r);
+        return 100f * height / Math.max(1, r.height());
+    }
+
+    /**
+     * Sets {@code v} to {@code size} px and centres its ink (not its line box) on a row of
+     * {@code height}, without the text box making the row taller.
+     */
+    private static LinearLayout.LayoutParams centreInk(TextView v, float size, String sample, int height) {
         v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, size);
         android.graphics.Paint.FontMetrics fm = v.getPaint().getFontMetrics();
+        android.graphics.Rect r = new android.graphics.Rect();
+        v.getPaint().getTextBounds(sample, 0, sample.length(), r);
         float box = fm.descent - fm.ascent;
         int squeeze = Math.max(0, Math.round((box - height) / 2));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
         lp.topMargin = -squeeze;
         lp.bottomMargin = -squeeze;
-        // The box is centred on the row; move the letters so the capitals are instead.
-        float boxCentre = box / 2, capCentre = -fm.ascent - height / 2f;
-        v.setTranslationY(boxCentre - capCentre);
+        float inkCentre = -fm.ascent + (r.top + r.bottom) / 2f;
+        v.setTranslationY(box / 2 - inkCentre);
         return lp;
     }
 
