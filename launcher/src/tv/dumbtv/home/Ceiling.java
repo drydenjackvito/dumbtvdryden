@@ -22,8 +22,8 @@ import java.util.Map;
  * apps' sound and, on most, not the HDMI input's.
  */
 final class Ceiling {
-    /** 0 dB down to the equalizer's floor, in 3 dB steps. */
-    static final int STEP_DB = 3, FLOOR_DB = 15;
+    /** 0 dB down to the equalizer's floor, in 1 dB steps. */
+    static final int STEP_DB = 1, FLOOR_DB = 15;
     static final String KEY = "music.ceiling";
 
     private static final Map<String, Integer> SESSIONS = new HashMap<>();
@@ -38,6 +38,7 @@ final class Ceiling {
                 if (AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION.equals(i.getAction())) SESSIONS.put(pkg, session);
                 else if (Integer.valueOf(session).equals(SESSIONS.get(pkg))) SESSIONS.remove(pkg);
             }
+            SHARED.follow(pkg);
         }
     };
     private static boolean listening;
@@ -51,11 +52,22 @@ final class Ceiling {
         listening = true;
     }
 
+    /**
+     * The one ceiling, kept by the home screen's process rather than the input screen, so the
+     * music stays where it was set when HOME leaves the game, and follows the app onto each new
+     * audio session it announces.
+     */
+    static final Ceiling SHARED = new Ceiling();
+
     private Equalizer eq;
+    private String pkg;
+    private int db;
     private int on = -1;
 
     /** Puts the ceiling, {@code db} below full (0 to FLOOR_DB), on {@code pkg}'s music. */
     void apply(String pkg, int db) {
+        this.pkg = pkg;
+        this.db = db;
         Integer session;
         synchronized (SESSIONS) {
             session = pkg == null ? null : SESSIONS.get(pkg);
@@ -93,7 +105,12 @@ final class Ceiling {
         }
     }
 
-    /** Lets go: the music is back to full the moment the input leaves. */
+    /** The set app announced a new audio session: the ceiling moves onto it. */
+    private void follow(String announced) {
+        if (pkg != null && pkg.equals(announced) && db > 0) apply(pkg, db);
+    }
+
+    /** Lets go of the equalizer; the music is back to full. */
     void release() {
         if (eq == null) return;
         try {

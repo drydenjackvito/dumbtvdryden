@@ -33,7 +33,9 @@ final class MiniPlayer extends View {
     private final int w, h, pad, artSize, lineH, gap, speed;
     private final float radius;
     private String song, by;
-    private Bitmap art, frost;
+    private Bitmap art, frost, oldArt, oldFrost;
+    private long artSig, fadeFrom;
+    private static final long ART_WAIT_MS = 2500, FADE_MS = 300;
     private boolean playing;
     private float level = -1;
     private long ceilingUntil, scrollFrom;
@@ -88,14 +90,48 @@ final class MiniPlayer extends View {
     }
 
     void set(String song, String by, Bitmap art, boolean playing) {
-        if (!same(song, this.song) || !same(by, this.by)) scrollFrom = SystemClock.uptimeMillis();
-        if (art != this.art) frost = art == null ? null : Bitmap.createScaledBitmap(
-                Bitmap.createScaledBitmap(art, 6, 6, true), 24, 24, true); // tiny, then up: a blur
+        boolean newSong = !same(song, this.song) || !same(by, this.by);
+        if (newSong) scrollFrom = SystemClock.uptimeMillis();
+        if (art != null) {
+            removeCallbacks(dropArt);
+            long sig = signature(art);
+            if (sig != artSig) { // the metadata hands over a fresh copy each time: same cover, no fade
+                artSig = sig;
+                oldArt = this.art;
+                oldFrost = frost;
+                fadeFrom = SystemClock.uptimeMillis();
+                this.art = art;
+                frost = Bitmap.createScaledBitmap(Bitmap.createScaledBitmap(art, 6, 6, true), 24, 24, true); // a blur
+            }
+        } else if (newSong && this.art != null) {
+            // A new song's cover often comes a moment after its name: keep the last one up till
+            // then, and only give up on it if none comes.
+            removeCallbacks(dropArt);
+            postDelayed(dropArt, ART_WAIT_MS);
+        }
         this.song = song;
         this.by = by;
-        this.art = art;
         this.playing = playing;
         invalidate();
+    }
+
+    private final Runnable dropArt = () -> {
+        art = oldArt = null;
+        frost = oldFrost = null;
+        artSig = 0;
+        invalidate();
+    };
+
+    /** A cheap fingerprint of a cover: its size and a handful of its pixels. */
+    private static long signature(Bitmap b) {
+        int w = b.getWidth(), h = b.getHeight();
+        long sig = w * 31L + h;
+        try {
+            for (int i = 1; i <= 7; i++) sig = sig * 1_000_003L + b.getPixel(w * i / 8, h * ((i * 3) % 8 + 1) / 9);
+        } catch (RuntimeException ignored) { // a bitmap that can't be read: treat as new
+            sig = System.nanoTime();
+        }
+        return sig == 0 ? 1 : sig;
     }
 
     private static boolean same(String a, String b) {
@@ -110,13 +146,13 @@ final class MiniPlayer extends View {
     void reveal() {
         animate().cancel();
         if (getVisibility() != VISIBLE) setVisibility(VISIBLE);
-        animate().alpha(1f).setDuration(220).withEndAction(this::recut).start();
+        animate().alpha(1f).setDuration(220).withLayer().withEndAction(this::recut).start();
         recut();
     }
 
     void conceal() {
         animate().cancel();
-        animate().alpha(0f).setDuration(260).withEndAction(() -> setVisibility(GONE)).start();
+        animate().alpha(0f).setDuration(260).withLayer().withEndAction(() -> setVisibility(GONE)).start();
     }
 
     /** Asks the window to work out the video's hole again, around the card as it stands now. */
@@ -140,7 +176,17 @@ final class MiniPlayer extends View {
         android.graphics.Path round = new android.graphics.Path();
         round.addRoundRect(box, radius, radius, android.graphics.Path.Direction.CW);
         canvas.clipPath(round);
-        if (frost != null) canvas.drawBitmap(frost, null, box, frostPaint);
+        float fade = Math.min(1f, (now - fadeFrom) / (float) FADE_MS);
+        if (fade < 1f) again = true;
+        else oldArt = oldFrost = null;
+        if (oldFrost != null) {
+            frostPaint.setAlpha(150);
+            canvas.drawBitmap(oldFrost, null, box, frostPaint);
+        }
+        if (frost != null) {
+            frostPaint.setAlpha(Math.round(150 * (oldFrost != null ? fade : 1f)));
+            canvas.drawBitmap(frost, null, box, frostPaint);
+        }
         canvas.drawRect(box, glass);
         canvas.restore();
         box.inset(rim.getStrokeWidth() / 2, rim.getStrokeWidth() / 2);
@@ -149,9 +195,16 @@ final class MiniPlayer extends View {
         // The art, square.
         artBox.set(pad, pad, pad + artSize, pad + artSize);
         if (art != null) {
+            // The new cover fades in over the last one.
+            if (oldArt != null) {
+                artPaint.setAlpha(255);
+                canvas.drawBitmap(oldArt, null, artBox, artPaint);
+            }
+            artPaint.setAlpha(Math.round(255 * (oldArt != null ? fade : 1f)));
             canvas.drawBitmap(art, null, artBox, artPaint);
+            artPaint.setAlpha(255);
         } else {
-            track.setColor(0x33FFFFFF);
+            track.setColor(0xFF2A2A2E); // no cover: a solid square, never a window onto the game
             canvas.drawRect(artBox, track);
         }
         if (!playing && art != null) { // paused: the art dims under a pause sign
@@ -172,7 +225,7 @@ final class MiniPlayer extends View {
             canvas.drawRoundRect(pad, mid - bh / 2, pad + Math.max(bh, artSize * level), mid + bh / 2, bh, bh, track);
             postInvalidateDelayed(ceilingUntil - now);
         } else {
-            again = line(canvas, now, mid);
+            again |= line(canvas, now, mid);
         }
         if (again && getVisibility() == VISIBLE) postInvalidateOnAnimation();
     }

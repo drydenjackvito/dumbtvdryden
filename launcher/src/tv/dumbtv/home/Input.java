@@ -46,7 +46,7 @@ public final class Input extends Activity {
     private final AudioManager.OnAudioFocusChangeListener focus = change -> { };
     private TvView view;
     private Music music;
-    private final Ceiling ceiling = new Ceiling();
+    private final Ceiling ceiling = Ceiling.SHARED; // outlives this screen: HOME keeps the music down
     private int ceilingDb;
     private MiniPlayer player;
     private final Runnable hidePlayer = () -> player.conceal();
@@ -168,8 +168,7 @@ public final class Input extends Activity {
         int gravity = (place.startsWith("t") ? Gravity.TOP : Gravity.BOTTOM)
                 | (place.endsWith("l") ? Gravity.START : Gravity.END);
         FrameLayout.LayoutParams pl = new FrameLayout.LayoutParams(WRAP, WRAP, gravity);
-        // Well inside the TV's safe area: many TVs crop a few percent off each edge.
-        pl.setMargins(dp(56), dp(56), dp(56), dp(56));
+                pl.setMargins(dp(28), dp(28), dp(28), dp(28)); // the home screen's own margin
         root.addView(player, pl);
         if ("on".equals(Config.get(this).get(Config.MUSIC))) {
             music = new Music(this, changedSong -> {
@@ -226,7 +225,6 @@ public final class Input extends Activity {
     protected void onStop() {
         ui.removeCallbacksAndMessages(null);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        ceiling.release();
         if (music != null) music.stop();
         if (view != null) {
             view.reset();
@@ -269,7 +267,7 @@ public final class Input extends Activity {
                     return true;
                 case KeyEvent.KEYCODE_CHANNEL_UP:
                 case KeyEvent.KEYCODE_CHANNEL_DOWN:
-                    // The music's ceiling, 3 dB a step; the game's sound is left alone.
+                    // The music's ceiling, 1 dB a step; the game's sound is left alone.
                     if (down) {
                         int step = e.getKeyCode() == KeyEvent.KEYCODE_CHANNEL_UP ? -Ceiling.STEP_DB : Ceiling.STEP_DB;
                         ceilingDb = Math.max(0, Math.min(Ceiling.FLOOR_DB, ceilingDb + step));

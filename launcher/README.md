@@ -57,11 +57,11 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
 - **Music over inputs.** With music playing (Spotify or any app with a media session),
   open an input from its panel and the music keeps going over it. On the remote:
   ⏯ plays and pauses, ⏩ and ⏪ skip songs, ☰ shows the card. Channel ▲ ▼ move the
-  music's ceiling in 3 dB steps (0 to −15 dB, 6 dB down to start, remembered): an
+  music's ceiling in 1 dB steps (0 to −15 dB, 6 dB down to start, remembered): an
   equalizer on the music app's own audio session, so the game's sound stays as it was and
   the TV's volume stays the master. It catches the session when the music app announces it
-  for equalizers; when none was heard it falls back to the output mix. Leaving the input
-  puts the music back to full. This needs MODIFY_AUDIO_SETTINGS, a normal permission. A frosted glass card with the square album art and the song and artist scrolling under it (the ceiling bar while channel ▲ ▼ are pressed) slides
+  for equalizers; when none was heard it falls back to the output mix. The ceiling stays
+  on after the input closes, until channel ▲ takes it back to 0 dB. This needs MODIFY_AUDIO_SETTINGS, a normal permission. A frosted glass card with the square album art and the song and artist scrolling under it (the ceiling bar while channel ▲ ▼ are pressed) slides
   in at the bottom right and leaves after five seconds; it also shows when the song
   changes. It needs notification access for `tv.dumbtv.home/.Listener`, which install.sh
   grants (the listener reads no notifications). Options › Music over inputs turns it off.
