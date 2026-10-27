@@ -38,33 +38,41 @@ final class MiniPlayer extends View {
     private float level = -1;
     private long ceilingUntil, scrollFrom;
 
-    MiniPlayer(Context c) {
+    private final float k;
+
+    /** {@code scale} sizes the whole card: 1 is medium. */
+    MiniPlayer(Context c, float scale) {
         super(c);
-        pad = Ui.dp(c, 10);
-        artSize = Ui.dp(c, 132);
-        lineH = Ui.dp(c, 30);
+        k = scale;
+        pad = d(10);
+        artSize = d(132);
+        lineH = d(30);
         w = artSize + 2 * pad;
-        h = pad + artSize + lineH + Ui.dp(c, 2);
-        radius = Ui.dp(c, 16);
-        gap = Ui.dp(c, 36);
-        speed = Ui.dp(c, 32); // per second
+        h = pad + artSize + lineH + d(2);
+        radius = d(16);
+        gap = d(36);
+        speed = d(32); // per second
         glass.setColor(0x52FFFFFF);
         rim.setStyle(Paint.Style.STROKE);
-        rim.setStrokeWidth(Ui.dp(c, 1));
+        rim.setStrokeWidth(d(1));
         rim.setColor(0x66FFFFFF);
         frostPaint.setAlpha(150);
         glyph.setColor(0xF2FFFFFF);
         title.setColor(0xFFFFFFFF);
         title.setTypeface(Ui.MEDIUM);
-        title.setTextSize(Ui.dp(c, 14));
-        title.setShadowLayer(Ui.dp(c, 2), 0, Ui.dp(c, 0.5f), 0x59000000);
+        title.setTextSize(d(14));
+        title.setShadowLayer(d(2), 0, d(0.5f), 0x59000000);
         artist.setColor(0xCCFFFFFF);
         artist.setTypeface(Ui.REGULAR);
-        artist.setTextSize(Ui.dp(c, 14));
-        artist.setShadowLayer(Ui.dp(c, 2), 0, Ui.dp(c, 0.5f), 0x59000000);
+        artist.setTextSize(d(14));
+        artist.setShadowLayer(d(2), 0, d(0.5f), 0x59000000);
         fade.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
         setAlpha(0f);
         setVisibility(GONE);
+    }
+
+    private int d(float v) {
+        return Ui.dp(getContext(), v * k);
     }
 
     /** The music's ceiling, 0 to 1. */
@@ -157,7 +165,7 @@ final class MiniPlayer extends View {
         float top = pad + artSize, mid = top + lineH / 2f;
         if (now < ceilingUntil && level >= 0) {
             // The ceiling: a bar as wide as the art.
-            float bh = Ui.dp(getContext(), 4);
+            float bh = d(4);
             track.setColor(0x47FFFFFF);
             canvas.drawRoundRect(pad, mid - bh / 2, pad + artSize, mid + bh / 2, bh, bh, track);
             track.setColor(0xFFFFFFFF);
@@ -191,7 +199,7 @@ final class MiniPlayer extends View {
             canvas.drawText(a, at + sw + seW, base, artist);
         }
         if (scroll) { // soft ends, so the text slides in and out of the glass
-            float f = Ui.dp(getContext(), 14);
+            float f = d(14);
             fade.setShader(new LinearGradient(pad, 0, pad + f, 0, 0xFF000000, 0x00000000, Shader.TileMode.CLAMP));
             canvas.drawRect(pad, mid - lineH / 2f, pad + f, mid + lineH / 2f, fade);
             fade.setShader(new LinearGradient(pad + artSize - f, 0, pad + artSize, 0, 0x00000000, 0xFF000000, Shader.TileMode.CLAMP));

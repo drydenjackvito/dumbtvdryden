@@ -71,11 +71,26 @@ final class Config {
     static final Choice MUSIC = new Choice("music", "Music over inputs", "on",
             new String[] {"on", "off"},
             new String[] {"On", "Off"});
+    /** The music card over an input: shown for a few seconds on a change, or all the time. */
+    static final Choice MINI_SHOW = new Choice("mini.show", "Mini-player", "auto",
+            new String[] {"auto", "always"},
+            new String[] {"On changes", "Always"});
+    static final Choice MINI_SIZE = new Choice("mini.size", "Mini-player size", "medium",
+            new String[] {"small", "medium", "large"},
+            new String[] {"Small", "Medium", "Large"});
+    static final Choice MINI_PLACE = new Choice("mini.place", "Mini-player position", "br",
+            new String[] {"br", "bl", "tr", "tl"},
+            new String[] {"Bottom right", "Bottom left", "Top right", "Top left"});
+    /** HOME pressed twice from another app (Spotify, say) goes back to the input last shown. */
+    static final Choice HOME_TWICE = new Choice("home.twice", "Home twice", "game",
+            new String[] {"game", "off"},
+            new String[] {"Back to the last input", "Home screen"});
     static final Choice SWITCH = new Choice("switch", "Open inputs with", "auto",
             new String[] {"auto", "tv", "home"},
             new String[] {"Automatic", "The TV's app", "dumbtv home"});
 
-    static final Choice[] CHOICES = {TILES, ORDER, APPS_SHELF, INPUTS, PREVIEW, MUSIC, SWITCH};
+    static final Choice[] CHOICES = {TILES, ORDER, APPS_SHELF, INPUTS, PREVIEW, MUSIC, MINI_SHOW, MINI_SIZE,
+            MINI_PLACE, HOME_TWICE, SWITCH};
 
     private static Config instance;
 

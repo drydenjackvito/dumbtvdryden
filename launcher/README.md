@@ -65,6 +65,11 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   in at the bottom right and leaves after five seconds; it also shows when the song
   changes. It needs notification access for `tv.dumbtv.home/.Listener`, which install.sh
   grants (the listener reads no notifications). Options › Music over inputs turns it off.
+  Options › Mini-player: **On changes** (a few seconds after a press or a new song) or
+  **Always**; Mini-player size: Small, Medium, Large; Mini-player position: any corner.
+- **Home twice.** From another app, pressing Home twice within a few seconds goes straight
+  back to the input last shown: pick music in Spotify, Home Home, and the game is back with
+  the music over it. Options › Home twice › Home screen turns it off.
 - **Apps shelf.** Off by default (Options › Apps shelf); it also shows whenever
   there are no inputs to show, as on a Fire TV stick, so the home screen is never
   empty.

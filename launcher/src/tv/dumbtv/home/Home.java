@@ -57,6 +57,26 @@ public final class Home extends Activity {
     private Covers covers;
     private int applied = -1, appsGeneration;
     private boolean resumed, landed;
+    private static final long HOME_TWICE_MS = 2500;
+    /** When HOME last brought this screen back from another app; 0 when it did not. */
+    private long homeFromAway;
+    private static final long AWAY_MS = 1500;
+    /** When this screen was last hidden. */
+    private long stoppedAt;
+    /** Whether it had been hidden a while before this start (onStart runs before onNewIntent). */
+    private boolean wasAway;
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        wasAway = stoppedAt != 0 && android.os.SystemClock.uptimeMillis() - stoppedAt > AWAY_MS;
+    }
+
+    @Override
+    protected void onStop() {
+        stoppedAt = android.os.SystemClock.uptimeMillis();
+        super.onStop();
+    }
 
     private FrameLayout root;
     private LinearLayout bar;
@@ -282,6 +302,22 @@ public final class Home extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        // HOME twice from another app: straight back to the input last shown (the game, with
+        // music picked in Spotify). The first press, from away, only arms it.
+        long now = android.os.SystemClock.uptimeMillis();
+        boolean twice = homeFromAway != 0 && now - homeFromAway < HOME_TWICE_MS;
+        // Away means hidden for a while, in another app; Amazon's home flashing over this one on
+        // the second press hides it only for a moment.
+        homeFromAway = !twice && wasAway ? now : 0;
+        wasAway = false;
+        if (twice && "game".equals(cfg.get(Config.HOME_TWICE))) {
+            Intent back = Input.last(this);
+            if (back != null) {
+                homeFromAway = 0;
+                startActivity(back);
+                return;
+            }
+        }
         if (movingTile != null) stopMovingTile();
         if (resumed) {
             closePage(false);

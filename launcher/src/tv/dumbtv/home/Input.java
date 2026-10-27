@@ -51,6 +51,8 @@ public final class Input extends Activity {
     private MiniPlayer player;
     private final Runnable hidePlayer = () -> player.conceal();
     private static final long PLAYER_MS = 5000;
+    /** Options › Mini-player › Always: the card stays while there is music. */
+    private boolean always;
     private TextView name, status;
     private String id;
     private final Runnable hideName = () -> name.animate().alpha(0f).setDuration(250)
@@ -96,6 +98,23 @@ public final class Input extends Activity {
         return new Intent(c, Input.class).putExtra(EXTRA_ID, it.id).putExtra(EXTRA_NAME, name);
     }
 
+    private static final String LAST_ID = "last.input", LAST_NAME = "last.input.name";
+
+    /** Remembers the input on screen, for HOME twice to come back to. */
+    private static void remember(Context c, String id, CharSequence name) {
+        Config cfg = Config.get(c);
+        cfg.set(LAST_ID, id);
+        cfg.set(LAST_NAME, name == null ? "" : name.toString());
+    }
+
+    /** The input last shown on this screen, opened again; null when there was none. */
+    static Intent last(Context c) {
+        Config cfg = Config.get(c);
+        String id = cfg.get(LAST_ID, "");
+        if (id.isEmpty()) return null;
+        return new Intent(c, Input.class).putExtra(EXTRA_ID, id).putExtra(EXTRA_NAME, cfg.get(LAST_NAME, ""));
+    }
+
     /**
      * Amazon's Live TV claims every passthrough URI, then redirects to its own settings or a
      * channel scan instead of showing the input (seen on Fire OS 7 and 8 televisions).
@@ -134,15 +153,25 @@ public final class Input extends Activity {
         root.addView(name, lp);
 
         // Music over the input: a card at the bottom right, and the remote's media keys for it.
-        player = new MiniPlayer(this);
-        FrameLayout.LayoutParams pl = new FrameLayout.LayoutParams(WRAP, WRAP, Gravity.BOTTOM | Gravity.END);
+        Config cfg = Config.get(this);
+        String size = cfg.get(Config.MINI_SIZE), place = cfg.get(Config.MINI_PLACE);
+        always = "always".equals(cfg.get(Config.MINI_SHOW));
+        player = new MiniPlayer(this, "small".equals(size) ? 0.8f : "large".equals(size) ? 1.3f : 1f);
+        int gravity = (place.startsWith("t") ? Gravity.TOP : Gravity.BOTTOM)
+                | (place.endsWith("l") ? Gravity.START : Gravity.END);
+        FrameLayout.LayoutParams pl = new FrameLayout.LayoutParams(WRAP, WRAP, gravity);
         // Well inside the TV's safe area: many TVs crop a few percent off each edge.
-        pl.setMargins(0, 0, dp(56), dp(56));
+        pl.setMargins(dp(56), dp(56), dp(56), dp(56));
         root.addView(player, pl);
         if ("on".equals(Config.get(this).get(Config.MUSIC))) {
             music = new Music(this, changedSong -> {
                 refreshPlayer();
-                if (changedSong) showPlayer();
+                if (!music.has()) {
+                    ui.removeCallbacks(hidePlayer);
+                    player.conceal();
+                } else if (changedSong || (always && player.getVisibility() != View.VISIBLE)) {
+                    showPlayer();
+                }
             });
         }
         setContentView(root);
@@ -158,7 +187,9 @@ public final class Input extends Activity {
             return;
         }
         boolean musicOn = music != null && music.start() && music.anyPlaying();
+        remember(this, id, getIntent().getCharSequenceExtra(EXTRA_NAME));
         if (musicOn) {
+            if (always) showPlayer();
             ceilingDb = Integer.parseInt(Config.get(this).get(Ceiling.KEY, "6"));
             ceiling.apply(music.app(), ceilingDb);
         }
@@ -265,7 +296,7 @@ public final class Input extends Activity {
         refreshPlayer();
         ui.removeCallbacks(hidePlayer);
         player.reveal();
-        ui.postDelayed(hidePlayer, PLAYER_MS);
+        if (!always) ui.postDelayed(hidePlayer, PLAYER_MS);
     }
 
     private void showName() {
