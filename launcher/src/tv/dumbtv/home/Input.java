@@ -289,13 +289,16 @@ public final class Input extends Activity {
                 if (e.getAction() == KeyEvent.ACTION_UP) finish();
                 return true;
             case KeyEvent.KEYCODE_MENU:
-                // Menu: off to SmartTube to pick a video. Leaving it (HOME) shrinks it to
-                // picture-in-picture, and HOME twice brings this input back under it.
+                // Menu: off to the app the card shows (Spotify, SmartTube) to pick something
+                // else; with nothing playing, to SmartTube. HOME twice comes back here (a
+                // SmartTube video, left with HOME, floats over the game in picture-in-picture).
                 if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
-                    Intent tube = videoApp(this);
-                    if (tube != null) startActivity(tube);
-                    else if (music != null && music.has()) showPlayer();
-                    else showName();
+                    boolean opened = music != null && music.has() && music.open(this);
+                    if (!opened) {
+                        Intent tube = videoApp(this);
+                        if (tube != null) startActivity(tube);
+                        else showName();
+                    }
                 }
                 return true;
             case KeyEvent.KEYCODE_INFO:

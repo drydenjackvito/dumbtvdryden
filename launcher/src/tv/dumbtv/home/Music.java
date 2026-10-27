@@ -2,6 +2,7 @@ package tv.dumbtv.home;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.media.MediaMetadata;
 import android.media.session.MediaController;
@@ -173,6 +174,30 @@ final class Music {
     private static String key(MediaMetadata m) {
         if (m == null) return null;
         return m.getString(MediaMetadata.METADATA_KEY_TITLE) + "|" + m.getString(MediaMetadata.METADATA_KEY_ARTIST);
+    }
+
+    /**
+     * Opens the app behind the card, on its now-playing screen when it offers one; false when
+     * there is no app to open.
+     */
+    boolean open(Context c) {
+        if (controller == null) return false;
+        android.app.PendingIntent now = controller.getSessionActivity();
+        if (now != null) {
+            try {
+                now.send();
+                return true;
+            } catch (android.app.PendingIntent.CanceledException ignored) {
+                // fall through to the app's own launcher entry
+            }
+        }
+        android.content.pm.PackageManager pm = c.getPackageManager();
+        String pkg = controller.getPackageName();
+        Intent i = pm.getLeanbackLaunchIntentForPackage(pkg);
+        if (i == null) i = pm.getLaunchIntentForPackage(pkg);
+        if (i == null) return false;
+        c.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED));
+        return true;
     }
 
     /** The playing app's package, for its audio session. */
