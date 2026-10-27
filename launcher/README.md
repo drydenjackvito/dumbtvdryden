@@ -18,7 +18,9 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   and **Settings** (Fire TV's settings) at the left; the clock in light grey at the
   right. ☰ opens a menu: Options and Amazon's home screen. The margin round the
   screen (28 dp) is the same at the top, the sides and under the panels.
-- **Panels.** A row of equal panels at the bottom, one margin up from the screen
+- **Panels.** Nothing is selected when the home screen comes up; the first press on the
+  remote (except ▲, which goes to the top bar) only wakes it. The selected panel glows
+  white round its top and sides. A row of equal panels at the bottom, one margin up from the screen
   edge with the reflection fading past it, that slides as you move, the selected one in the middle, each standing on a reflective floor. No
   titles or text around them.
 - **Input names.** An input is named after the device on it when the device says
@@ -46,10 +48,12 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
 - **Live preview.** Above the panels, the selected input's picture appears once it
   arrives, muted, after the selection rests for half a second. A device that is off
   shows nothing; for an app, its banner shows. Options › Input preview: **Hologram**
-  (default: it flickers on, with drifting scan lines, rising bands of transparency, a
+  (default: it flickers on, with fixed scan lines, rising bands of transparency, a
   sweep now and then and short glitches that jolt it sideways), **Plain**
   (a fade), or **Off**. The video itself cannot be warped: the TV's hardware draws it
-  under the app, so the hologram is layered over it.
+  under the app, so the hologram is layered over it. Round the preview, a glow in its
+  colours: a tiny copy of the picture, twice a second, blurred. Where the TV will not
+  share the picture (often for HDCP sources), the glow is a soft neutral white.
 - **Apps shelf.** Off by default (Options › Apps shelf); it also shows whenever
   there are no inputs to show, as on a Fire TV stick, so the home screen is never
   empty.
@@ -247,6 +251,7 @@ Delete both to stop.
 | `src/.../Shelf.java` | the sliding row of panels: spring glide, reflection |
 | `src/.../Preview.java` | the live, muted preview of the selected input |
 | `src/.../Greetings.java` | picks the greeting for the time of day from greetings.txt |
+| `src/.../Glow.java` | the coloured glow round the preview |
 | `src/.../Holo.java` | the hologram over the preview: scan lines, bands, flicker, glitches |
 | `src/.../Covers.java` | the face of a panel: banner, icon and name, or an input card |
 | `src/.../Tile.java` | one app on the Apps grid, with its name and grey line |

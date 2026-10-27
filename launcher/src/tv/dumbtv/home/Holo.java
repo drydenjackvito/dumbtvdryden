@@ -11,7 +11,7 @@ import android.view.View;
 /**
  * The hologram over the preview. The picture of an HDMI input is composed by the TV's video
  * hardware under this window, so its pixels cannot be warped; this layer works on top of it
- * and moves it: fine drifting scan lines, soft bands of transparency rising through
+ * and moves it: fine fixed scan lines, soft bands of transparency rising through
  * it, a slow breathing of the whole image, a bright sweep now and then, and short glitches that
  * jolt the picture sideways and tear a few bands through it. Runs at about 30 frames a second,
  * only while a picture shows.
@@ -89,11 +89,10 @@ final class Holo extends View {
             canvas.restore();
         }
 
-        // Scan lines, drifting down: a dark line with a light one under it, for a ridged texture
-        // that reads on dark and bright video alike (an overlay-like look; real blend modes cannot
-        // reach the video, which the hardware draws under this window).
-        float off = (t * Ui.dp(getContext(), 10)) % pitch;
-        for (float y = off - pitch; y < h; y += pitch) {
+        // Scan lines, fixed like a CRT's (the sweep is what rolls): a dark line with a light one
+        // under it, for a ridged texture that reads on dark and bright video alike (an overlay-like
+        // look; real blend modes cannot reach the video, which the hardware draws under this window).
+        for (float y = 0; y < h; y += pitch) {
             paint.setColor(0x24000000);
             canvas.drawRect(0, y, w, y + line, paint);
             paint.setColor(0x1AFFFFFF);

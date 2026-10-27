@@ -25,6 +25,9 @@ final class Preview extends FrameLayout {
     private final ImageView art;
     private final View veil;
     private final Holo holo;
+    private Glow glow;
+    private int copyFailures;
+    private final Runnable sample = this::sample;
     private boolean hologram;
     private String tuned, showing;
     private boolean video;
@@ -80,6 +83,57 @@ final class Preview extends FrameLayout {
         setFocusable(false);
     }
 
+    /** The coloured glow behind this window, fed from its picture. */
+    void setGlow(Glow g) {
+        glow = g;
+    }
+
+    /**
+     * Copies the picture into a tiny frame for the glow, twice a second while it shows. The TV's
+     * video hardware may refuse (often for HDCP sources): after two refusals the glow goes neutral
+     * and stops asking.
+     */
+    private void sample() {
+        if (glow == null) return;
+        if (art.getVisibility() == VISIBLE && art.getDrawable() != null) {
+            android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(64, 36, android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.drawable.Drawable d = art.getDrawable();
+            d.setBounds(0, 0, 64, 36);
+            d.draw(new android.graphics.Canvas(b));
+            glow.feed(b);
+            return; // a banner does not change
+        }
+        android.view.SurfaceView surface = surfaceOf(tv);
+        if (surface == null || !video || copyFailures >= 2) {
+            if (copyFailures >= 2) glow.neutral();
+            return;
+        }
+        android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(64, 36, android.graphics.Bitmap.Config.ARGB_8888);
+        try {
+            android.view.PixelCopy.request(surface, b, result -> {
+                if (result == android.view.PixelCopy.SUCCESS) {
+                    copyFailures = 0;
+                    glow.feed(b);
+                } else if (++copyFailures >= 2) {
+                    glow.neutral();
+                    return;
+                }
+                if (video) ui.postDelayed(sample, 500);
+            }, ui);
+        } catch (RuntimeException e) {
+            copyFailures = 2;
+            glow.neutral();
+        }
+    }
+
+    private static android.view.SurfaceView surfaceOf(android.view.ViewGroup g) {
+        if (g == null) return null;
+        for (int i = 0; i < g.getChildCount(); i++) {
+            if (g.getChildAt(i) instanceof android.view.SurfaceView) return (android.view.SurfaceView) g.getChildAt(i);
+        }
+        return null;
+    }
+
     /**
      * Shows {@code it} once the selection has rested. {@code mode} is Options › Input preview:
      * "holo" (the hologram), "on" (plain), or "off" (no live picture of inputs).
@@ -129,6 +183,8 @@ final class Preview extends FrameLayout {
         veil.setAlpha(1f);
         flicker.clear();
         ui.removeCallbacks(flickerStep);
+        ui.removeCallbacks(sample);
+        if (glow != null) glow.hide();
         holo.stop();
         release();
     }
@@ -140,6 +196,8 @@ final class Preview extends FrameLayout {
     }
 
     private void reveal() {
+        ui.removeCallbacks(sample);
+        ui.postDelayed(sample, 250);
         if (!hologram) {
             veil.animate().alpha(0f).setDuration(FADE_MS).start();
             return;
@@ -168,6 +226,8 @@ final class Preview extends FrameLayout {
     };
 
     private void conceal() {
+        ui.removeCallbacks(sample);
+        if (glow != null) glow.hide();
         flicker.clear();
         ui.removeCallbacks(flickerStep);
         holo.stop();

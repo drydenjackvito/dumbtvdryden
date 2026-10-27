@@ -63,9 +63,12 @@ public final class Home extends Activity {
     private IconButton menuBtn, appsBtn, settingsBtn;
     private TextView clock;
     private Preview preview;
+    private Glow glow;
     /** The greeting in the middle of the screen, until the first press on the remote. */
     private TextView greeting;
     private boolean greeted;
+    /** The key whose press woke the screen: its release must not act either. */
+    private int wakeKey = -1;
     private LinearLayout home;
     private Shelf apps, inputs;
     private TextView empty;
@@ -203,12 +206,20 @@ public final class Home extends Activity {
         greeting.setVisibility(pageKind == null ? View.VISIBLE : View.GONE);
         greeted = false;
         preview.stop();
+        quiet(true);
+    }
+
+    private void quiet(boolean on) {
+        for (Shelf s : new Shelf[] {apps, inputs}) {
+            if (s != null) s.setQuiet(on);
+        }
     }
 
     /** The first press: the greeting fades and the selected panel's preview takes its place. */
     private void ungreet() {
         if (greeted) return;
         greeted = true;
+        quiet(false);
         greeting.animate().alpha(0f).setDuration(250).withEndAction(() -> greeting.setVisibility(View.GONE)).start();
         View focus = getCurrentFocus();
         if (focus instanceof Shelf && ((Shelf) focus).current() != null) {
@@ -276,7 +287,19 @@ public final class Home extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
-        if (!greeted && e.getAction() == KeyEvent.ACTION_DOWN) ui.post(this::ungreet);
+        // The first press only wakes the screen: the greeting goes and the selection appears,
+        // without moving or opening anything. Up is the exception: it goes to the top bar.
+        if (!greeted && e.getAction() == KeyEvent.ACTION_DOWN) {
+            ungreet();
+            if (e.getKeyCode() != KeyEvent.KEYCODE_DPAD_UP) {
+                wakeKey = e.getKeyCode();
+                return true;
+            }
+        }
+        if (wakeKey != -1 && e.getKeyCode() == wakeKey) {
+            if (e.getAction() == KeyEvent.ACTION_UP) wakeKey = -1;
+            return true; // its repeats and release
+        }
         if (movingTile == null) return super.dispatchKeyEvent(e);
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
             switch (e.getKeyCode()) {
@@ -315,7 +338,10 @@ public final class Home extends Activity {
     private View build() {
         root = new FrameLayout(this);
         root.setBackgroundColor(Ui.PAGE);
+        glow = new Glow(this);
+        root.addView(glow, new FrameLayout.LayoutParams(0, 0));
         preview = new Preview(this);
+        preview.setGlow(glow);
         root.addView(preview, new FrameLayout.LayoutParams(0, 0));
         greeting = Ui.text(this, 40, 0xFFB4B4BC, Ui.REGULAR);
         greeting.setLetterSpacing(-0.02f);
@@ -434,6 +460,17 @@ public final class Home extends Activity {
             preview.setLayoutParams(lp);
         }
         preview.setVisibility(room ? View.VISIBLE : View.INVISIBLE);
+        // The glow: the preview's rectangle, spread by the glow's padding.
+        FrameLayout.LayoutParams gl = (FrameLayout.LayoutParams) glow.getLayoutParams();
+        int ex = Math.round(w * Glow.PAD_X / 32f), ey = Math.round(h * Glow.PAD_Y / 18f);
+        int gw = room ? w + 2 * ex : 0, ghh = room ? h + 2 * ey : 0;
+        if (gl.width != gw || gl.height != ghh || gl.leftMargin != left - ex || gl.topMargin != y - ey) {
+            gl.width = gw;
+            gl.height = ghh;
+            gl.leftMargin = left - ex;
+            gl.topMargin = y - ey;
+            glow.setLayoutParams(gl);
+        }
         // The greeting takes the preview's place, between the top bar and the panels.
         FrameLayout.LayoutParams g = (FrameLayout.LayoutParams) greeting.getLayoutParams();
         int gh = Math.max(0, bottom - top);
@@ -491,6 +528,7 @@ public final class Home extends Activity {
         s.setId(View.generateViewId());
         s.setTag(keep);
         s.setListener(shelfListener);
+        s.setQuiet(!greeted);
         s.setOnClickListener(v -> {
             Item it = s.current();
             if (it != null) open(it, kind);

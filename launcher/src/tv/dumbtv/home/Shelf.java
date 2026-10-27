@@ -54,6 +54,11 @@ final class Shelf extends View {
     private float velocity, springFrom, springB;
     private long springStart;
     private boolean springing, moving;
+    /** Before the first press: nothing looks selected. */
+    private boolean quiet;
+    private final android.graphics.Bitmap glow;
+    private final float glowR;
+    private final Paint glowPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
     /** The key that ended a move: its release must not also open the panel. */
     private boolean swallowUp;
 
@@ -68,7 +73,9 @@ final class Shelf extends View {
         radius = Ui.dp(c, 12);
         ringGap = Ui.dp(c, 3);
         ringW = Ui.dp(c, 1.75f);
-        top = ringGap + ringW + Ui.dp(c, 4);
+        glowR = Ui.dp(c, 18);
+        top = glowR;
+        glow = focusGlow(Math.round(coverW), Math.round(coverH), radius, glowR);
         clip.addRoundRect(new RectF(0, 0, coverW, coverH), radius, radius, Path.Direction.CW);
 
         // The reflection's veil, in the panel's own coordinates: the page colour letting through
@@ -115,6 +122,45 @@ final class Shelf extends View {
             }
         }
         return android.graphics.Bitmap.createBitmap(px, w, h, android.graphics.Bitmap.Config.ARGB_8888);
+    }
+
+    /**
+     * The selection: a soft white glow round the top and sides of the panel, fading out toward
+     * its bottom so the panel seems lit from above. Blurred once in software (Fire OS 6 cannot
+     * blur on the GPU).
+     */
+    private static android.graphics.Bitmap focusGlow(int w, int h, float radius, float r) {
+        int g = Math.round(r), bw = w + 2 * g, bh = h + 2 * g;
+        android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(bw, bh, android.graphics.Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setColor(0xFFFFFFFF);
+        // Solid white for a few dp round the panel, then a soft fade: the page is a light grey,
+        // so the white reads as light spilling out from the panel.
+        float core = r * 0.3f;
+        p.setMaskFilter(new android.graphics.BlurMaskFilter(r * 0.55f, android.graphics.BlurMaskFilter.Blur.NORMAL));
+        RectF card = new RectF(g - core, g - core, g + w + core, g + h + core);
+        c.drawRoundRect(card, radius + core, radius + core, p);
+        c.drawRoundRect(card, radius + core, radius + core, p);
+        int[] px = new int[bw * bh];
+        b.getPixels(px, 0, bw, 0, 0, bw, bh);
+        float fadeFrom = g + h * 0.45f, fadeTo = g + h;
+        for (int y = 0; y < bh; y++) {
+            float k = y <= fadeFrom ? 1 : y >= fadeTo ? 0 : 1 - (y - fadeFrom) / (fadeTo - fadeFrom);
+            k = k * k;
+            for (int x = 0; x < bw; x++) {
+                int a = px[y * bw + x] >>> 24;
+                px[y * bw + x] = (Math.round(a * k) << 24) | 0xFFFFFF;
+            }
+        }
+        b.setPixels(px, 0, bw, 0, 0, bw, bh);
+        return b;
+    }
+
+    /** Quiet: nothing looks selected until the first press on the remote. */
+    void setQuiet(boolean on) {
+        quiet = on;
+        invalidate();
     }
 
     void setListener(Listener l) {
@@ -267,8 +313,12 @@ final class Shelf extends View {
         float cx = getWidth() / 2f, floor = top + coverH, pitch = coverW + gap;
         int reach = (int) Math.ceil(getWidth() / 2f / pitch) + 1;
         int from = Math.max(0, (int) Math.floor(pos) - reach), to = Math.min(n - 1, (int) Math.ceil(pos) + reach);
+        if (isFocused() && !quiet && !moving) {
+            float x = cx + (target - pos) * pitch;
+            canvas.drawBitmap(glow, x - coverW / 2 - glowR, floor - coverH - glowR, glowPaint);
+        }
         for (int k = from; k <= to; k++) drawPanel(canvas, k, cx + (k - pos) * pitch, floor);
-        if (isFocused() || moving) {
+        if (moving) {
             float x = cx + (target - pos) * pitch, out = ringGap + ringW / 2;
             box.set(x - coverW / 2 - out, floor - coverH - out, x + coverW / 2 + out, floor + out);
             ring.setPathEffect(moving ? new DashPathEffect(new float[] {ringW * 3, ringW * 2}, 0) : null);
