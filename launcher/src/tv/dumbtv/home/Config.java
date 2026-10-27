@@ -64,9 +64,9 @@ final class Config {
             new String[] {"on", "off"},
             new String[] {"Shown", "Hidden"});
     /** The live picture of the selected input above the panels. */
-    static final Choice PREVIEW = new Choice("preview", "Input preview", "on",
-            new String[] {"on", "off"},
-            new String[] {"Live", "Off"});
+    static final Choice PREVIEW = new Choice("preview", "Input preview", "holo",
+            new String[] {"holo", "on", "off"},
+            new String[] {"Hologram", "Plain", "Off"});
     static final Choice SWITCH = new Choice("switch", "Open inputs with", "auto",
             new String[] {"auto", "tv", "home"},
             new String[] {"Automatic", "The TV's app", "dumbtv home"});

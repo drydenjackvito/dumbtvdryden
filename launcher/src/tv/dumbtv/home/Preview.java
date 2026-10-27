@@ -28,6 +28,8 @@ final class Preview extends FrameLayout {
     private final TvView tv;
     private final ImageView art;
     private final View veil;
+    private final Holo holo;
+    private boolean hologram;
     private String tuned, showing;
     private boolean video;
     private Runnable pending;
@@ -75,13 +77,21 @@ final class Preview extends FrameLayout {
         addView(art, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         veil = new View(c);
         veil.setBackgroundColor(Ui.PAGE);
+        holo = new Holo(c);
+        holo.jolts(tv != null ? new View[] {tv, art} : new View[] {art});
+        addView(holo, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         addView(veil, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         addView(new Corners(c), new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         setFocusable(false);
     }
 
-    /** Shows {@code it} once the selection has rested; {@code live} false skips tuning inputs. */
-    void show(Item it, String kind, boolean live) {
+    /**
+     * Shows {@code it} once the selection has rested. {@code mode} is Options › Input preview:
+     * "holo" (the hologram), "on" (plain), or "off" (no live picture of inputs).
+     */
+    void show(Item it, String kind, String mode) {
+        boolean live = !"off".equals(mode);
+        hologram = "holo".equals(mode);
         if (it.id.equals(showing) && (pending != null || tuned != null || art.getVisibility() == VISIBLE)) return;
         showing = it.id;
         if (pending != null) ui.removeCallbacks(pending);
@@ -122,6 +132,9 @@ final class Preview extends FrameLayout {
         art.setVisibility(GONE);
         veil.animate().cancel();
         veil.setAlpha(1f);
+        flicker.clear();
+        ui.removeCallbacks(flickerStep);
+        holo.stop();
         release();
     }
 
@@ -132,10 +145,37 @@ final class Preview extends FrameLayout {
     }
 
     private void reveal() {
-        veil.animate().alpha(0f).setDuration(FADE_MS).start();
+        if (!hologram) {
+            veil.animate().alpha(0f).setDuration(FADE_MS).start();
+            return;
+        }
+        // Flickers on like a projector catching: hard cuts between levels, then steady.
+        veil.animate().cancel();
+        holo.start();
+        flicker.clear();
+        float[][] steps = {{0.35f, 0}, {0.9f, 60}, {0.15f, 110}, {0.75f, 170}, {0.05f, 240},
+            {0.5f, 300}, {0.1f, 360}, {0.3f, 430}, {0f, 520}};
+        for (float[] st : steps) flicker.add(st);
+        flickerStart = android.os.SystemClock.uptimeMillis();
+        ui.removeCallbacks(flickerStep);
+        ui.post(flickerStep);
     }
 
+    private final java.util.List<float[]> flicker = new java.util.ArrayList<>();
+    private long flickerStart;
+    private final Runnable flickerStep = new Runnable() {
+        @Override
+        public void run() {
+            long now = android.os.SystemClock.uptimeMillis() - flickerStart;
+            while (!flicker.isEmpty() && flicker.get(0)[1] <= now) veil.setAlpha(flicker.remove(0)[0]);
+            if (!flicker.isEmpty()) ui.postDelayed(this, Math.max(1, (long) flicker.get(0)[1] - now));
+        }
+    };
+
     private void conceal() {
+        flicker.clear();
+        ui.removeCallbacks(flickerStep);
+        holo.stop();
         veil.animate().cancel();
         veil.animate().alpha(1f).setDuration(120).start();
     }

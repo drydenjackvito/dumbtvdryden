@@ -127,7 +127,7 @@ public final class Home extends Activity {
         @Override
         public void selected(Shelf shelf, Item item) {
             if (resumed && pageKind == null && greeted) {
-                preview.show(item, shelf.kind, "on".equals(cfg.get(Config.PREVIEW)));
+                preview.show(item, shelf.kind, cfg.get(Config.PREVIEW));
             }
         }
     };

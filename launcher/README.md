@@ -41,10 +41,13 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   the middle of the screen whenever the home screen comes up, until the first press on
   the remote; then the preview takes its place. Add a name with `greeting.name=` in
   home.conf.
-- **Live preview.** Above the panels, the selected input's picture fades in once it
-  arrives, muted, after the selection rests for half a second. A device that is
-  off shows nothing. For an app, its banner fades in. Options › Input preview turns
-  it off.
+- **Live preview.** Above the panels, the selected input's picture appears once it
+  arrives, muted, after the selection rests for half a second. A device that is off
+  shows nothing; for an app, its banner shows. Options › Input preview: **Hologram**
+  (default: it flickers on, with drifting scan lines, rising bands of transparency, a
+  cyan wash, a sweep now and then and short glitches that jolt it sideways), **Plain**
+  (a fade), or **Off**. The video itself cannot be warped: the TV's hardware draws it
+  under the app, so the hologram is layered over it.
 - **Apps shelf.** Off by default (Options › Apps shelf); it also shows whenever
   there are no inputs to show, as on a Fire TV stick, so the home screen is never
   empty.
@@ -69,7 +72,7 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
 | App order | your order, or recently used, newest first |
 | Apps shelf | hidden (default), shown |
 | Inputs shelf | shown, hidden |
-| Input preview | live, off |
+| Input preview | hologram, plain, off |
 | Open inputs with | Automatic, the TV's app, dumbtv home (see below) |
 
 Below them: which apps and inputs appear, a reset for order, names and hidden
@@ -141,8 +144,8 @@ order=custom
 apps.shelf=off
 # on off
 inputs=on
-# on off
-preview=on
+# holo on off
+preview=holo
 # auto tv home
 switch=auto
 apps.order=com.amazon.firetv.youtube,org.videolan.vlc
@@ -241,6 +244,7 @@ Delete both to stop.
 | `src/.../Home.java` | the home screen: top bar, clock, preview, panels, Apps grid, menus, move mode |
 | `src/.../Shelf.java` | the sliding row of panels: spring glide, reflection |
 | `src/.../Preview.java` | the live, muted preview of the selected input |
+| `src/.../Holo.java` | the hologram over the preview: scan lines, bands, flicker, glitches |
 | `src/.../Covers.java` | the face of a panel: banner, icon and name, or an input card |
 | `src/.../Tile.java` | one app on the Apps grid, with its name and grey line |
 | `src/.../Grid.java` | the Apps grid |
