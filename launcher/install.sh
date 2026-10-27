@@ -207,21 +207,25 @@ sleep 2
 source ../scripts/accessibility.sh
 user=$(sh_ am get-current-user | tr -d '\r')
 bound=0
-for _ in $(seq 1 15); do
+for _ in $(seq 1 30); do
   if sh_ dumpsys accessibility | guard_bound "${user:-0}"; then bound=1; break; fi
   sleep 1
 done
 if [[ $bound == 0 ]]; then
-  echo "error: Fire OS did not bind the HOME guard ($GUARD)." >&2
   denied=$(sh_ logcat -d -b all | grep A11yAuthorizer | grep -c "$PKG" || true)
   if [[ ${denied:-0} -gt 0 ]]; then
+    echo "error: Fire OS did not bind the HOME guard ($GUARD)." >&2
     echo "  this build only runs accessibility services Amazon trusts (FireOSFwk A11yAuthorizer)," >&2
     echo "  so HOME cannot be taken over here. dumbtv home stays installed as a normal app;" >&2
     echo "  remove it with: adb uninstall $PKG" >&2
+    set_futurity off
+    set_guard ""
+    exit 1
   fi
-  set_futurity off
-  set_guard ""
-  exit 1
+  # Not refused, only slow (a debuggable build starts slower after an install): leave the
+  # guard switched on so Fire OS binds it when it gets there, rather than handing HOME back.
+  echo "note: the HOME guard is switched on but not bound yet; press Home in a few seconds." >&2
+  echo "  check: adb shell dumpsys accessibility | grep -i dumbtv" >&2
 fi
 start_home $PKG/.Home
 if installed com.spocky.projengmenu; then
