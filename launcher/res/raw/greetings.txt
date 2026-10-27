@@ -41,10 +41,9 @@ Good night, {name}
 
 [after midnight] 00:00-05:00
 Let's keep the volume low
-Don't wake the missus, ykwim
+Don't wake the missus
 It's past midnight, {name}
 Tomorrow-you says hi
 Sleep is for the weak, apparently
 Just one more, right?
 Shh, {name}
-The fridge can wait, {name}
