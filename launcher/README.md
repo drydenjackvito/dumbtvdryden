@@ -45,7 +45,7 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   arrives, muted, after the selection rests for half a second. A device that is off
   shows nothing; for an app, its banner shows. Options › Input preview: **Hologram**
   (default: it flickers on, with drifting scan lines, rising bands of transparency, a
-  cyan wash, a sweep now and then and short glitches that jolt it sideways), **Plain**
+  sweep now and then and short glitches that jolt it sideways), **Plain**
   (a fade), or **Off**. The video itself cannot be warped: the TV's hardware draws it
   under the app, so the hologram is layered over it.
 - **Apps shelf.** Off by default (Options › Apps shelf); it also shows whenever

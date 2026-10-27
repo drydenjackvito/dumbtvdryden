@@ -11,13 +11,12 @@ import android.view.View;
 /**
  * The hologram over the preview. The picture of an HDMI input is composed by the TV's video
  * hardware under this window, so its pixels cannot be warped; this layer works on top of it
- * and moves it: a cyan wash, fine drifting scan lines, soft bands of transparency rising through
+ * and moves it: fine drifting scan lines, soft bands of transparency rising through
  * it, a slow breathing of the whole image, a bright sweep now and then, and short glitches that
  * jolt the picture sideways and tear a few bands through it. Runs at about 30 frames a second,
  * only while a picture shows.
  */
 final class Holo extends View {
-    private static final int TINT = 0x1F38C8FF;
     private static final long FRAME_MS = 33;
 
     private final Paint paint = new Paint();
@@ -78,8 +77,6 @@ final class Holo extends View {
         float breathe = 0.065f + 0.02f * (float) Math.sin(t * 2.3f) + 0.01f * (float) Math.sin(t * 7.1f);
         paint.setColor((Math.round(breathe * 255) << 24) | (Ui.PAGE & 0x00FFFFFF));
         canvas.drawRect(0, 0, w, h, paint);
-        paint.setColor(TINT);
-        canvas.drawRect(0, 0, w, h, paint);
 
         // Bands of transparency rising through the picture at different speeds.
         float[][] bands = {{38, 0f}, {23, 0.45f}, {61, 0.8f}};
@@ -115,7 +112,7 @@ final class Holo extends View {
         if (glitch) {
             for (int i = 0; i < 3; i++) {
                 float y = noise(slot * 13 + i) * h, th = Ui.dp(getContext(), 2 + 10 * noise(slot * 17 + i));
-                paint.setColor(i == 1 ? 0x5538C8FF : (0x8C << 24) | (Ui.PAGE & 0x00FFFFFF));
+                paint.setColor(i == 1 ? 0x55FFFFFF : (0x8C << 24) | (Ui.PAGE & 0x00FFFFFF));
                 float shift = (noise(slot * 19 + i) * 2 - 1) * jolt * 2;
                 canvas.drawRect(Math.max(0, shift), y, Math.min(w, w + shift), y + th, paint);
             }
