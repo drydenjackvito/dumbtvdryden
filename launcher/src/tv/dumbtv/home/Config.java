@@ -67,11 +67,15 @@ final class Config {
     static final Choice PREVIEW = new Choice("preview", "Input preview", "holo",
             new String[] {"holo", "on", "off"},
             new String[] {"Hologram", "Plain", "Off"});
+    /** Over an input: a music card, and the remote's media keys skip songs in Spotify and the like. */
+    static final Choice MUSIC = new Choice("music", "Music over inputs", "on",
+            new String[] {"on", "off"},
+            new String[] {"On", "Off"});
     static final Choice SWITCH = new Choice("switch", "Open inputs with", "auto",
             new String[] {"auto", "tv", "home"},
             new String[] {"Automatic", "The TV's app", "dumbtv home"});
 
-    static final Choice[] CHOICES = {TILES, ORDER, APPS_SHELF, INPUTS, PREVIEW, SWITCH};
+    static final Choice[] CHOICES = {TILES, ORDER, APPS_SHELF, INPUTS, PREVIEW, MUSIC, SWITCH};
 
     private static Config instance;
 

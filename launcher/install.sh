@@ -90,6 +90,7 @@ if [[ $mode == undo ]]; then
   sh_ appops set $PKG GET_USAGE_STATS default >/dev/null 2>&1 || true
   set_futurity off
   set_guard ""
+  sh_ cmd notification disallow_listener "$PKG/$PKG.Listener" >/dev/null 2>&1 || true
   sh_ dumpsys deviceidle whitelist -$PKG >/dev/null 2>&1 || true
   sh_ am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null 2>&1 || true
   echo "HOME handed back to Amazon's launcher (dumbtv home stays installed: adb uninstall $PKG)"
@@ -153,6 +154,15 @@ case $out in
   *) echo "error: adb install failed: $(printf '%s' "$out" | tail -1)" >&2; exit 1 ;;
 esac
 echo "installed $PKG"
+
+# Music over inputs: lets the input screen see and skip what Spotify (or any music app) plays.
+# Android ties that to notification access; the listener reads no notifications. Not fatal.
+LISTENER=$PKG/$PKG.Listener
+if ! sh_ cmd notification allow_listener "$LISTENER" >/dev/null 2>&1; then
+  cur=$(sh_ settings get secure enabled_notification_listeners 2>/dev/null || true)
+  [[ $cur == null ]] && cur=
+  [[ :$cur: == *":$LISTENER:"* ]] || sh_ settings put secure enabled_notification_listeners "${cur:+$cur:}$LISTENER" >/dev/null 2>&1 || true
+fi
 
 sh_ dumpsys deviceidle whitelist +$PKG >/dev/null
 

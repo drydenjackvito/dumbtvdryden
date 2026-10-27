@@ -75,6 +75,17 @@
             </intent-filter>
         </receiver>
 
+        <!-- Lets the input screen see and skip the music another app plays (Spotify and the like).
+             It reads no notifications. install.sh grants it: cmd notification allow_listener. -->
+        <service
+            android:name=".Listener"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <service
             android:name=".Guard"
             android:label="@string/guard_label"

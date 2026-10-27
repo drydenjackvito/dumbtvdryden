@@ -54,6 +54,13 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   under the app, so the hologram is layered over it. Round the preview, a glow in its
   colours: a 64x36 copy of the picture, twice a second, blurred, reaching about 16 dp past the edges, at full brightness with nearly its own saturation. Where the TV will not
   share the picture (often for HDCP sources), the glow is a soft neutral white.
+- **Music over inputs.** With music playing (Spotify or any app with a media session),
+  open an input from its panel and the music keeps going over it. On the remote:
+  ⏯ plays and pauses, ⏩ and ⏪ skip songs, channel ▲ ▼ turn the music's own volume up
+  and down, ☰ shows the card. A card with the album art, song, artist and volume slides
+  in at the bottom right and leaves after five seconds; it also shows when the song
+  changes. It needs notification access for `tv.dumbtv.home/.Listener`, which install.sh
+  grants (the listener reads no notifications). Options › Music over inputs turns it off.
 - **Apps shelf.** Off by default (Options › Apps shelf); it also shows whenever
   there are no inputs to show, as on a Fire TV stick, so the home screen is never
   empty.
@@ -79,6 +86,7 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
 | Apps shelf | hidden (default), shown |
 | Inputs shelf | shown, hidden |
 | Input preview | hologram, plain, off |
+| Music over inputs | on, off |
 | Open inputs with | Automatic, the TV's app, dumbtv home (see below) |
 
 Below them: which apps and inputs appear, a reset for order, names and hidden
@@ -251,6 +259,9 @@ Delete both to stop.
 | `src/.../Shelf.java` | the sliding row of panels: spring glide, reflection |
 | `src/.../Preview.java` | the live, muted preview of the selected input |
 | `src/.../Greetings.java` | picks the greeting for the time of day from greetings.txt |
+| `src/.../Music.java` | the playing music app: song, art, play, pause, skip, volume |
+| `src/.../MiniPlayer.java` | the music card over an input |
+| `src/.../Listener.java` | the notification access that music control needs |
 | `src/.../Glow.java` | the coloured glow round the preview |
 | `src/.../Holo.java` | the hologram over the preview: scan lines, bands, flicker, glitches |
 | `src/.../Covers.java` | the face of a panel: banner, icon and name, or an input card |

@@ -45,6 +45,10 @@ public final class Input extends Activity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final AudioManager.OnAudioFocusChangeListener focus = change -> { };
     private TvView view;
+    private Music music;
+    private MiniPlayer player;
+    private final Runnable hidePlayer = () -> player.conceal();
+    private static final long PLAYER_MS = 5000;
     private TextView name, status;
     private String id;
     private final Runnable hideName = () -> name.animate().alpha(0f).setDuration(250)
@@ -126,6 +130,18 @@ public final class Input extends Activity {
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(WRAP, WRAP, Gravity.TOP | Gravity.START);
         lp.setMargins(dp(56), dp(40), 0, 0);
         root.addView(name, lp);
+
+        // Music over the input: a card at the bottom right, and the remote's media keys for it.
+        player = new MiniPlayer(this);
+        FrameLayout.LayoutParams pl = new FrameLayout.LayoutParams(WRAP, WRAP, Gravity.BOTTOM | Gravity.END);
+        pl.setMargins(0, 0, dp(40), dp(40));
+        root.addView(player, pl);
+        if ("on".equals(Config.get(this).get(Config.MUSIC))) {
+            music = new Music(this, changedSong -> {
+                refreshPlayer();
+                if (changedSong) showPlayer();
+            });
+        }
         setContentView(root);
     }
 
@@ -138,8 +154,13 @@ public final class Input extends Activity {
             status(FAILED);
             return;
         }
-        ((AudioManager) getSystemService(Context.AUDIO_SERVICE))
-                .requestAudioFocus(focus, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+        boolean musicOn = music != null && music.start() && music.anyPlaying();
+        // Taking audio focus stops other apps' sound; with music playing, it is left alone so the
+        // music keeps going over the game.
+        if (!musicOn) {
+            ((AudioManager) getSystemService(Context.AUDIO_SERVICE))
+                    .requestAudioFocus(focus, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+        }
         view.setStreamVolume(1f);
         view.tune(id, TvContract.buildChannelUriForPassthroughInput(id));
         view.requestFocus();
@@ -153,6 +174,7 @@ public final class Input extends Activity {
     protected void onStop() {
         ui.removeCallbacksAndMessages(null);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if (music != null) music.stop();
         if (view != null) {
             view.reset();
             ((AudioManager) getSystemService(Context.AUDIO_SERVICE)).abandonAudioFocus(focus);
@@ -160,9 +182,54 @@ public final class Input extends Activity {
         super.onStop();
     }
 
-    /** BACK leaves; Menu or Info shows the input's name again. Other keys go to the input. */
+    /**
+     * BACK leaves; Menu or Info shows the music card (or, without music, the input's name).
+     * Play/pause, fast-forward and rewind control the music, channel up and down its volume.
+     * Other keys go to the input.
+     */
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
+        boolean down = e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0;
+        if (music != null && music.has()) {
+            switch (e.getKeyCode()) {
+                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                case KeyEvent.KEYCODE_MEDIA_PLAY:
+                case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                    if (down) {
+                        music.playPause();
+                        showPlayer();
+                    }
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+                case KeyEvent.KEYCODE_MEDIA_NEXT:
+                    if (down) {
+                        music.next();
+                        showPlayer();
+                    }
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_REWIND:
+                case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                    if (down) {
+                        music.previous();
+                        showPlayer();
+                    }
+                    return true;
+                case KeyEvent.KEYCODE_CHANNEL_UP:
+                case KeyEvent.KEYCODE_CHANNEL_DOWN:
+                    // Held down, it keeps stepping: repeats count here.
+                    if (e.getAction() == KeyEvent.ACTION_DOWN) {
+                        music.volume(e.getKeyCode() == KeyEvent.KEYCODE_CHANNEL_UP ? 1 : -1);
+                        ui.postDelayed(this::showPlayer, 60); // let the new level land first
+                    }
+                    return true;
+                case KeyEvent.KEYCODE_MENU:
+                case KeyEvent.KEYCODE_INFO:
+                    if (down) showPlayer();
+                    return true;
+                default:
+                    break;
+            }
+        }
         switch (e.getKeyCode()) {
             case KeyEvent.KEYCODE_BACK:
                 if (e.getAction() == KeyEvent.ACTION_UP) finish();
@@ -174,6 +241,19 @@ public final class Input extends Activity {
             default:
                 return super.dispatchKeyEvent(e);
         }
+    }
+
+    private void refreshPlayer() {
+        if (music == null) return;
+        player.set(music.title(), music.artist(), music.art(), music.playing());
+        player.level(music.level());
+    }
+
+    private void showPlayer() {
+        refreshPlayer();
+        ui.removeCallbacks(hidePlayer);
+        player.reveal();
+        ui.postDelayed(hidePlayer, PLAYER_MS);
     }
 
     private void showName() {
