@@ -37,10 +37,12 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   the window it opens in home.conf as `guard.replace=package/class` (read it off the
   TV with `adb shell dumpsys window | grep mCurrentFocus` while that screen shows), and
   Guard replaces it with this home screen, as it does Amazon's home.
-- **Greeting.** "Good morning", "Good afternoon" or "Good evening" in light grey in
-  the middle of the screen whenever the home screen comes up, until the first press on
-  the remote; then the preview takes its place. Add a name with `greeting.name=` in
-  home.conf.
+- **Greeting.** A greeting in light grey in the middle of the screen whenever the
+  home screen comes up, until the first press on the remote; then the preview takes its
+  place. It is picked at random from the lines for the time of day in
+  `res/raw/greetings.txt` (early, morning, afternoon, evening, night). Edit a copy and
+  push it to `/sdcard/Android/media/tv.dumbtv.home/greetings.txt` to change them
+  without a rebuild. `{name}` becomes `greeting.name=` from home.conf.
 - **Live preview.** Above the panels, the selected input's picture appears once it
   arrives, muted, after the selection rests for half a second. A device that is off
   shows nothing; for an app, its banner shows. Options › Input preview: **Hologram**
@@ -244,6 +246,7 @@ Delete both to stop.
 | `src/.../Home.java` | the home screen: top bar, clock, preview, panels, Apps grid, menus, move mode |
 | `src/.../Shelf.java` | the sliding row of panels: spring glide, reflection |
 | `src/.../Preview.java` | the live, muted preview of the selected input |
+| `src/.../Greetings.java` | picks the greeting for the time of day from greetings.txt |
 | `src/.../Holo.java` | the hologram over the preview: scan lines, bands, flicker, glitches |
 | `src/.../Covers.java` | the face of a panel: banner, icon and name, or an input card |
 | `src/.../Tile.java` | one app on the Apps grid, with its name and grey line |

@@ -106,6 +106,12 @@ final class Config {
         refresh();
     }
 
+    /** {@code name} in the media folder adb can write to, or in the app's own folder without one. */
+    File sharedFile(String name) {
+        File f = shared == null ? null : new File(shared, name);
+        return f != null && f.isFile() ? f : new File(dir, name);
+    }
+
     /** Changes every time a setting changes, from the UI or from the file on disk. */
     int version() {
         return version;

@@ -197,11 +197,7 @@ public final class Home extends Activity {
 
     /** Shows the greeting; the preview waits behind it until the first press. */
     private void greet() {
-        int hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY);
-        String part = hour >= 5 && hour < 12 ? "Good morning" : hour >= 12 && hour < 17 ? "Good afternoon"
-                : "Good evening";
-        String name = cfg.get("greeting.name", "");
-        greeting.setText(name.isEmpty() ? part : part + ", " + name);
+        greeting.setText(Greetings.pick(this, cfg));
         greeting.animate().cancel();
         greeting.setAlpha(1f);
         greeting.setVisibility(pageKind == null ? View.VISIBLE : View.GONE);

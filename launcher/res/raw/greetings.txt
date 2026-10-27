@@ -1,0 +1,40 @@
+# Tomboy home greetings. One greeting per line, under the time of day it belongs to.
+# One is picked at random each time the home screen comes up.
+# {name} becomes greeting.name from home.conf (and the ", " before it is dropped when no name is set).
+# Lines starting with # are notes. Edit freely, then:
+#   adb push greetings.txt /sdcard/Android/media/tv.dumbtv.home/greetings.txt
+
+[early] 05:00-08:00
+Early start, {name}
+Up with the sun
+Good morning, {name}
+Quiet hours, all yours
+Coffee first
+
+[morning] 08:00-12:00
+Good morning, {name}
+Morning, {name}
+Hope you slept well
+Fresh start
+Rise and shine
+
+[afternoon] 12:00-17:00
+Good afternoon, {name}
+Afternoon, {name}
+Taking a break?
+Halfway through the day
+Hey there, {name}
+
+[evening] 17:00-21:00
+Good evening, {name}
+Evening, {name}
+Welcome home, {name}
+Time to unwind
+What are we watching?
+
+[night] 21:00-05:00
+Late night, {name}?
+Still up, {name}?
+One more episode?
+Night owl mode
+Good night, {name}
