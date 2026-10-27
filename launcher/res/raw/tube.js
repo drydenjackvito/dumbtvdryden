@@ -6,12 +6,12 @@
 (function () {
   if (window.__tb) return;
   window.__tb = 1;
-  var START = __START__, VOL = __VOL__, MAX_W = 640, MAX_H = 360;
+  var START = __START__, VOL = __VOL__, MAX_W = 426, MAX_H = 240;
   var stats = { dec: 0, drawn: 0, late: 0, restarts: 0, skips: 0, ms: 0 };
   function log(s) { try { Tomboy.log(s); } catch (e) {} }
 
-  // 1. Steer YouTube to VP9 (the software decoder's codec) at 360p or less: the TV's processor
-  // decodes 480p at about 20 frames a second, short of 30.
+  // 1. Steer YouTube to VP9 (the software decoder's codec) at 240p or less: next to an HDMI
+  // input, the TV's processor decodes about 20 frames a second at 480p and 15 at 360p.
   function ok(t) {
     t = String(t || '');
     if (/av01|avc1|avc3|hev1|hvc1/i.test(t)) return false;
