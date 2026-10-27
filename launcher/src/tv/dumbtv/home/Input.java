@@ -53,6 +53,14 @@ public final class Input extends Activity {
     private static final long PLAYER_MS = 5000;
     /** Options › Mini-player › Always: the card stays while there is music. */
     private boolean always;
+    /** Whether music was playing at the last look, to catch it starting. */
+    private boolean wasPlaying;
+
+    /** Puts the remembered ceiling on the music playing now. */
+    private void capMusic() {
+        ceilingDb = Integer.parseInt(Config.get(this).get(Ceiling.KEY, "6"));
+        ceiling.apply(music.app(), ceilingDb);
+    }
     private TextView name, status;
     private String id;
     private final Runnable hideName = () -> name.animate().alpha(0f).setDuration(250)
@@ -166,10 +174,16 @@ public final class Input extends Activity {
         if ("on".equals(Config.get(this).get(Config.MUSIC))) {
             music = new Music(this, changedSong -> {
                 refreshPlayer();
+                // Music can start after the input opened: from Spotify on a phone (Connect), say.
+                // The card then appears and the ceiling goes on, as if it had been playing.
+                boolean playing = music.has() && music.playing();
+                boolean started = playing && !wasPlaying;
+                wasPlaying = playing;
+                if (playing) capMusic(); // again on each change: the app's session may come later
                 if (!music.has()) {
                     ui.removeCallbacks(hidePlayer);
                     player.conceal();
-                } else if (changedSong || (always && player.getVisibility() != View.VISIBLE)) {
+                } else if (changedSong || started || (always && player.getVisibility() != View.VISIBLE)) {
                     showPlayer();
                 }
             });
@@ -188,10 +202,10 @@ public final class Input extends Activity {
         }
         boolean musicOn = music != null && music.start() && music.anyPlaying();
         remember(this, id, getIntent().getCharSequenceExtra(EXTRA_NAME));
+        wasPlaying = musicOn;
         if (musicOn) {
             if (always) showPlayer();
-            ceilingDb = Integer.parseInt(Config.get(this).get(Ceiling.KEY, "6"));
-            ceiling.apply(music.app(), ceilingDb);
+            capMusic();
         }
         // Taking audio focus stops other apps' sound; with music playing, it is left alone so the
         // music keeps going over the game.

@@ -52,16 +52,24 @@ final class Ceiling {
     }
 
     private Equalizer eq;
+    private int on = -1;
 
     /** Puts the ceiling, {@code db} below full (0 to FLOOR_DB), on {@code pkg}'s music. */
     void apply(String pkg, int db) {
+        Integer session;
+        synchronized (SESSIONS) {
+            session = pkg == null ? null : SESSIONS.get(pkg);
+        }
+        int want = session != null ? session : 0;
+        // The app's own session can be announced after the music starts: move onto it then.
+        if (eq != null && on != want && session != null) release();
         if (eq == null) {
-            Integer session;
-            synchronized (SESSIONS) {
-                session = pkg == null ? null : SESSIONS.get(pkg);
+            eq = make(want);
+            on = want;
+            if (eq == null && session != null) {
+                eq = make(0);
+                on = 0;
             }
-            eq = make(session != null ? session : 0);
-            if (eq == null && session != null) eq = make(0);
             if (eq == null) return;
         }
         try {
