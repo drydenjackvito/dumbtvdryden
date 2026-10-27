@@ -63,6 +63,8 @@ final class Ceiling {
     private String pkg;
     private int db;
     private int on = -1;
+    /** The level the equalizer has now; -1 when it is new. */
+    private int set = -1;
 
     /** Puts the ceiling, {@code db} below full (0 to FLOOR_DB), on {@code pkg}'s music. */
     void apply(String pkg, int db) {
@@ -77,6 +79,7 @@ final class Ceiling {
         // music starts, and changes when the app starts a new one), else the output mix. An
         // equalizer left on an old session turns down nothing.
         if (eq != null && (on != want || !alive())) release();
+        if (eq != null && db == set) return; // nothing changed: the app's updates come many a second
         if (eq == null) {
             eq = make(want);
             on = want;
@@ -91,6 +94,7 @@ final class Ceiling {
             short level = (short) Math.max(range[0], -db * 100);
             for (short b = 0; b < eq.getNumberOfBands(); b++) eq.setBandLevel(b, level);
             eq.setEnabled(db > 0);
+            set = db;
             Log.i("dumbtv", "music ceiling " + db + " dB on session " + on);
         } catch (RuntimeException e) {
             Log.w("dumbtv", "music ceiling", e);
@@ -125,6 +129,7 @@ final class Ceiling {
 
     /** Lets go of the equalizer; the music is back to full. */
     void release() {
+        set = -1;
         if (eq == null) return;
         try {
             eq.setEnabled(false);

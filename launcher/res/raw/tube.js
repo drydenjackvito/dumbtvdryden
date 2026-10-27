@@ -40,7 +40,7 @@
   }
 
   // 2. The video bytes as YouTube appends them: WebM, split into frames.
-  var chunks = [], seen = {}, codec = null, dirty = false;
+  var chunks = [], seen = {}, codec = null;
   var pend = new Uint8Array(0), clusterTime = 0, tick = 1000; // µs per timecode tick
 
   function vint(b, p, raw) {
@@ -82,13 +82,23 @@
         var t = Math.round((clusterTime + rel) * tick) + off;
         if (!seen[t]) {
           seen[t] = 1;
-          if (chunks.length && t < chunks[chunks.length - 1].t) dirty = true;
-          chunks.push({ t: t, key: key, data: data });
+          insert({ t: t, key: key, data: data });
         }
       }
       p = s + sz.v;
     }
     pend = b.slice(p);
+  }
+
+  // In time order. YouTube sometimes appends a piece out of order: it goes in its place, and
+  // the decoder carries on (starting it again would decode seconds of video a second time).
+  function insert(c) {
+    var n = chunks.length;
+    if (!n || c.t > chunks[n - 1].t) { chunks.push(c); return; }
+    var lo = 0, hi = n;
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (chunks[mid].t < c.t) lo = mid + 1; else hi = mid; }
+    chunks.splice(lo, 0, c);
+    if (lo < fed) fed++; // before what was fed already: behind the clock, not needed
   }
 
   function setCodec(type) {
@@ -134,9 +144,10 @@
 
   // 3. Decoding just ahead of the clock, and drawing the frame that is due.
   var dec = null, frames = [], fed = 0, needKey = true, target = 0, lastNow = -1, shown = null;
-  var stats = { dec: 0, drawn: 0 };
+  var stats = { dec: 0, drawn: 0, late: 0, restarts: 0, ms: 0 };
 
   function restartAt(now) {
+    stats.restarts++;
     if (dec) { try { dec.close(); } catch (e) {} }
     frames.forEach(function (f) { f.close(); });
     frames = [];
@@ -152,7 +163,6 @@
     dec.configure({ codec: codec, hardwareAcceleration: 'prefer-software', optimizeForLatency: true });
     needKey = true;
     target = now;
-    if (dirty) { chunks.sort(function (a, b) { return a.t - b.t; }); dirty = false; }
     var k = -1, i;
     for (i = 0; i < chunks.length; i++) {
       if (chunks[i].t > now) break;
@@ -164,9 +174,9 @@
 
   function pump(now) {
     if (!codec || !window.VideoDecoder) return;
-    if (!dec || dec.state === 'closed' || dirty || Math.abs(now - lastNow) > 2e6) restartAt(now);
+    if (!dec || dec.state === 'closed' || Math.abs(now - lastNow) > 2e6) restartAt(now);
     lastNow = now;
-    while (dec && fed < chunks.length && chunks[fed].t < now + 500000 && dec.decodeQueueSize < 4 && frames.length < 10) {
+    while (dec && fed < chunks.length && chunks[fed].t < now + 1000000 && dec.decodeQueueSize < 6 && frames.length < 16) {
       var c = chunks[fed++];
       if (needKey && !c.key) continue;
       needKey = false;
@@ -219,10 +229,11 @@
       pump(now);
       var pick = null;
       while (frames.length && frames[0].timestamp <= now + 20000) {
-        if (pick) pick.close();
+        if (pick) { pick.close(); stats.late++; } // came too late to be shown
         pick = frames.shift();
       }
       if (pick) {
+        var t0 = performance.now();
         var w = innerWidth, h = innerHeight;
         if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
         var fw = pick.displayWidth, fh = pick.displayHeight, sc = Math.min(w / fw, h / fh);
@@ -232,13 +243,18 @@
         if (shown) shown.close();
         shown = pick;
         stats.drawn++;
+        stats.ms += performance.now() - t0;
       }
       var n = Date.now();
       if (n - lastPrune > 1000) { lastPrune = n; prune(now); }
       if (n - lastLog > 3000) {
         lastLog = n;
         log('t=' + v.currentTime.toFixed(1) + ' paused=' + v.paused + ' codec=' + codec + ' chunks=' + chunks.length
-          + ' decoded=' + stats.dec + ' drawn=' + stats.drawn + ' size=' + (shown ? shown.displayWidth + 'x' + shown.displayHeight : '-'));
+          + ' decoded=' + stats.dec + ' drawn=' + stats.drawn + ' late=' + stats.late + ' restarts=' + stats.restarts
+          + ' queue=' + (dec ? dec.decodeQueueSize : '-') + '/' + frames.length
+          + ' drawMs=' + (stats.drawn ? (stats.ms / stats.drawn).toFixed(1) : '-')
+          + ' size=' + (shown ? shown.displayWidth + 'x' + shown.displayHeight : '-')
+          + ' canvas=' + canvas.width + 'x' + canvas.height + ' dpr=' + devicePixelRatio);
       }
     }
     var er = document.querySelector('.ytp-error');
