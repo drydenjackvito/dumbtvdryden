@@ -73,8 +73,10 @@ final class Ceiling {
             session = pkg == null ? null : SESSIONS.get(pkg);
         }
         int want = session != null ? session : 0;
-        // The app's own session can be announced after the music starts: move onto it then.
-        if (eq != null && on != want && session != null) release();
+        // Follow the session the app plays on now: its own once announced (it can come after the
+        // music starts, and changes when the app starts a new one), else the output mix. An
+        // equalizer left on an old session turns down nothing.
+        if (eq != null && (on != want || !alive())) release();
         if (eq == null) {
             eq = make(want);
             on = want;
@@ -89,8 +91,19 @@ final class Ceiling {
             short level = (short) Math.max(range[0], -db * 100);
             for (short b = 0; b < eq.getNumberOfBands(); b++) eq.setBandLevel(b, level);
             eq.setEnabled(db > 0);
+            Log.i("dumbtv", "music ceiling " + db + " dB on session " + on);
         } catch (RuntimeException e) {
             Log.w("dumbtv", "music ceiling", e);
+            release(); // made again on the next press
+        }
+    }
+
+    /** Whether the equalizer still works and still has control (another may have taken it). */
+    private boolean alive() {
+        try {
+            return eq.hasControl();
+        } catch (RuntimeException e) {
+            return false;
         }
     }
 
