@@ -42,7 +42,7 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   place. It is picked at random from the lines for the time of day in
   `res/raw/greetings.txt` (early, morning, afternoon, evening, night). Edit a copy and
   push it to `/sdcard/Android/media/tv.dumbtv.home/greetings.txt` to change them
-  without a rebuild. `{name}` becomes `greeting.name=` from home.conf.
+  without a rebuild. `{name}` becomes Dryden, or `greeting.name=` from home.conf.
 - **Live preview.** Above the panels, the selected input's picture appears once it
   arrives, muted, after the selection rests for half a second. A device that is off
   shows nothing; for an app, its banner shows. Options › Input preview: **Hologram**

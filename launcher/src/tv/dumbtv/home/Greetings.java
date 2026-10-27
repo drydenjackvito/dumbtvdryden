@@ -22,6 +22,8 @@ import java.util.Random;
  */
 final class Greetings {
     static final String FILE = "greetings.txt";
+    /** Whose TV this is; greeting.name in home.conf overrides it. */
+    static final String DEFAULT_NAME = "Dryden";
     private static final Random RANDOM = new Random();
 
     private Greetings() {}
@@ -30,7 +32,7 @@ final class Greetings {
         String text = read(cfg.sharedFile(FILE));
         if (text == null) text = builtIn(c);
         String line = pick(text, minuteOfDay());
-        String name = cfg.get("greeting.name", "").trim();
+        String name = cfg.get("greeting.name", DEFAULT_NAME).trim();
         return name(line == null ? "Hello, {name}" : line, name);
     }
 

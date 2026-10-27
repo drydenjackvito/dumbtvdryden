@@ -1,6 +1,6 @@
 # Tomboy home greetings. One greeting per line, under the time of day it belongs to.
 # One is picked at random each time the home screen comes up.
-# {name} becomes greeting.name from home.conf (and the ", " before it is dropped when no name is set).
+# {name} becomes Dryden (change it with greeting.name=... in home.conf).
 # Lines starting with # are notes. Edit freely, then:
 #   adb push greetings.txt /sdcard/Android/media/tv.dumbtv.home/greetings.txt
 
@@ -32,9 +32,19 @@ Welcome home, {name}
 Time to unwind
 What are we watching?
 
-[night] 21:00-05:00
+[night] 21:00-00:00
 Late night, {name}?
 Still up, {name}?
 One more episode?
 Night owl mode
 Good night, {name}
+
+[after midnight] 00:00-05:00
+Let's keep the volume low
+Don't wake the missus, ykwim
+It's past midnight, {name}
+Tomorrow-you says hi
+Sleep is for the weak, apparently
+Just one more, right?
+Shh, {name}
+The fridge can wait, {name}
