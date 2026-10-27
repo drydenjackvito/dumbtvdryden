@@ -141,12 +141,25 @@ final class Music {
     Bitmap art() {
         MediaMetadata m = controller == null ? null : controller.getMetadata();
         if (m == null) return null;
-        for (String k : new String[] {MediaMetadata.METADATA_KEY_ALBUM_ART, MediaMetadata.METADATA_KEY_ART,
-                MediaMetadata.METADATA_KEY_DISPLAY_ICON}) {
+        for (String k : new String[] {MediaMetadata.METADATA_KEY_ALBUM_ART, MediaMetadata.METADATA_KEY_ART}) {
             Bitmap b = m.getBitmap(k);
-            if (b != null) return b;
+            if (b != null && !logo(b)) return b;
         }
         return null;
+    }
+
+    /**
+     * Whether {@code b} is the app's logo rather than a cover: Spotify sends its round logo until
+     * the album art loads. Covers are solid squares; a logo has see-through corners.
+     */
+    private static boolean logo(Bitmap b) {
+        if (!b.hasAlpha() || b.isRecycled() || "HARDWARE".equals(String.valueOf(b.getConfig()))) return false;
+        int w = b.getWidth() - 1, h = b.getHeight() - 1;
+        int[][] corners = {{0, 0}, {w, 0}, {0, h}, {w, h}};
+        for (int[] c : corners) {
+            if (android.graphics.Color.alpha(b.getPixel(c[0], c[1])) < 128) return true;
+        }
+        return false;
     }
 
     private String text(String a, String b) {

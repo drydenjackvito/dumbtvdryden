@@ -94,20 +94,26 @@ final class MiniPlayer extends View {
         return a == null ? b == null : a.equals(b);
     }
 
+    /*
+     * A fade, no slide: the window cuts a hole for the video wherever no view covers it, and works
+     * that out from where the card stands when it is laid out. Slid in from the side, the card
+     * left its first 40 dp in the hole, showing the game through it.
+     */
     void reveal() {
         animate().cancel();
-        if (getVisibility() != VISIBLE) {
-            setVisibility(VISIBLE);
-            setTranslationX(Ui.dp(getContext(), 40));
-            scrollFrom = SystemClock.uptimeMillis();
-        }
-        animate().alpha(1f).translationX(0).setDuration(220).start();
+        if (getVisibility() != VISIBLE) setVisibility(VISIBLE);
+        animate().alpha(1f).setDuration(220).withEndAction(this::recut).start();
+        recut();
     }
 
     void conceal() {
         animate().cancel();
-        animate().alpha(0f).translationX(Ui.dp(getContext(), 40)).setDuration(260)
-                .withEndAction(() -> setVisibility(GONE)).start();
+        animate().alpha(0f).setDuration(260).withEndAction(() -> setVisibility(GONE)).start();
+    }
+
+    /** Asks the window to work out the video's hole again, around the card as it stands now. */
+    private void recut() {
+        if (getParent() != null) getParent().requestTransparentRegion(this);
     }
 
     @Override
