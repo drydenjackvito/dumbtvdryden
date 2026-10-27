@@ -56,8 +56,12 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   share the picture (often for HDCP sources), the glow is a soft neutral white.
 - **Music over inputs.** With music playing (Spotify or any app with a media session),
   open an input from its panel and the music keeps going over it. On the remote:
-  ⏯ plays and pauses, ⏩ and ⏪ skip songs, channel ▲ ▼ turn the music's own volume up
-  and down, ☰ shows the card. A card with the album art, song, artist and volume slides
+  ⏯ plays and pauses, ⏩ and ⏪ skip songs, ☰ shows the card. Channel ▲ ▼ move the
+  music's ceiling in 3 dB steps (0 to −15 dB, 6 dB down to start, remembered): an
+  equalizer on the music app's own audio session, so the game's sound stays as it was and
+  the TV's volume stays the master. It catches the session when the music app announces it
+  for equalizers; when none was heard it falls back to the output mix. Leaving the input
+  puts the music back to full. This needs MODIFY_AUDIO_SETTINGS, a normal permission. A card with the album art, song, artist and volume slides
   in at the bottom right and leaves after five seconds; it also shows when the song
   changes. It needs notification access for `tv.dumbtv.home/.Listener`, which install.sh
   grants (the listener reads no notifications). Options › Music over inputs turns it off.
@@ -259,7 +263,8 @@ Delete both to stop.
 | `src/.../Shelf.java` | the sliding row of panels: spring glide, reflection |
 | `src/.../Preview.java` | the live, muted preview of the selected input |
 | `src/.../Greetings.java` | picks the greeting for the time of day from greetings.txt |
-| `src/.../Music.java` | the playing music app: song, art, play, pause, skip, volume |
+| `src/.../Music.java` | the playing music app: song, art, play, pause, skip |
+| `src/.../Ceiling.java` | the music's volume ceiling over inputs: an equalizer on its audio session |
 | `src/.../MiniPlayer.java` | the music card over an input |
 | `src/.../Listener.java` | the notification access that music control needs |
 | `src/.../Glow.java` | the coloured glow round the preview |

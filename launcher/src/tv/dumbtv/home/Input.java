@@ -46,6 +46,8 @@ public final class Input extends Activity {
     private final AudioManager.OnAudioFocusChangeListener focus = change -> { };
     private TvView view;
     private Music music;
+    private final Ceiling ceiling = new Ceiling();
+    private int ceilingDb;
     private MiniPlayer player;
     private final Runnable hidePlayer = () -> player.conceal();
     private static final long PLAYER_MS = 5000;
@@ -155,6 +157,10 @@ public final class Input extends Activity {
             return;
         }
         boolean musicOn = music != null && music.start() && music.anyPlaying();
+        if (musicOn) {
+            ceilingDb = Integer.parseInt(Config.get(this).get(Ceiling.KEY, "6"));
+            ceiling.apply(music.app(), ceilingDb);
+        }
         // Taking audio focus stops other apps' sound; with music playing, it is left alone so the
         // music keeps going over the game.
         if (!musicOn) {
@@ -174,6 +180,7 @@ public final class Input extends Activity {
     protected void onStop() {
         ui.removeCallbacksAndMessages(null);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        ceiling.release();
         if (music != null) music.stop();
         if (view != null) {
             view.reset();
@@ -184,7 +191,7 @@ public final class Input extends Activity {
 
     /**
      * BACK leaves; Menu or Info shows the music card (or, without music, the input's name).
-     * Play/pause, fast-forward and rewind control the music, channel up and down its volume.
+     * Play/pause, fast-forward and rewind control the music, channel up and down its ceiling.
      * Other keys go to the input.
      */
     @Override
@@ -216,10 +223,13 @@ public final class Input extends Activity {
                     return true;
                 case KeyEvent.KEYCODE_CHANNEL_UP:
                 case KeyEvent.KEYCODE_CHANNEL_DOWN:
-                    // Held down, it keeps stepping: repeats count here.
-                    if (e.getAction() == KeyEvent.ACTION_DOWN) {
-                        music.volume(e.getKeyCode() == KeyEvent.KEYCODE_CHANNEL_UP ? 1 : -1);
-                        ui.postDelayed(this::showPlayer, 60); // let the new level land first
+                    // The music's ceiling, 3 dB a step; the game's sound is left alone.
+                    if (down) {
+                        int step = e.getKeyCode() == KeyEvent.KEYCODE_CHANNEL_UP ? -Ceiling.STEP_DB : Ceiling.STEP_DB;
+                        ceilingDb = Math.max(0, Math.min(Ceiling.FLOOR_DB, ceilingDb + step));
+                        ceiling.apply(music.app(), ceilingDb);
+                        Config.get(this).set(Ceiling.KEY, String.valueOf(ceilingDb));
+                        showPlayer();
                     }
                     return true;
                 case KeyEvent.KEYCODE_MENU:
@@ -246,7 +256,7 @@ public final class Input extends Activity {
     private void refreshPlayer() {
         if (music == null) return;
         player.set(music.title(), music.artist(), music.art(), music.playing());
-        player.level(music.level());
+        player.level(1f - ceilingDb / (float) Ceiling.FLOOR_DB);
     }
 
     private void showPlayer() {

@@ -162,21 +162,9 @@ final class Music {
         return m.getString(MediaMetadata.METADATA_KEY_TITLE) + "|" + m.getString(MediaMetadata.METADATA_KEY_ARTIST);
     }
 
-    /**
-     * The music's own volume, one step up or down: the playing app's session volume, which on a
-     * TV is usually apart from the TV's input sound. No system volume bar is shown.
-     */
-    void volume(int direction) {
-        if (controller == null) return;
-        controller.adjustVolume(direction > 0 ? android.media.AudioManager.ADJUST_RAISE
-                : android.media.AudioManager.ADJUST_LOWER, 0);
-    }
-
-    /** The music's volume as a share of its maximum, or -1 when unknown. */
-    float level() {
-        MediaController.PlaybackInfo info = controller == null ? null : controller.getPlaybackInfo();
-        if (info == null || info.getMaxVolume() <= 0) return -1;
-        return info.getCurrentVolume() / (float) info.getMaxVolume();
+    /** The playing app's package, for its audio session. */
+    String app() {
+        return controller == null ? null : controller.getPackageName();
     }
 
     void playPause() {
