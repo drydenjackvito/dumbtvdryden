@@ -136,7 +136,8 @@ public final class Input extends Activity {
         // Music over the input: a card at the bottom right, and the remote's media keys for it.
         player = new MiniPlayer(this);
         FrameLayout.LayoutParams pl = new FrameLayout.LayoutParams(WRAP, WRAP, Gravity.BOTTOM | Gravity.END);
-        pl.setMargins(0, 0, dp(40), dp(40));
+        // Well inside the TV's safe area: many TVs crop a few percent off each edge.
+        pl.setMargins(0, 0, dp(56), dp(56));
         root.addView(player, pl);
         if ("on".equals(Config.get(this).get(Config.MUSIC))) {
             music = new Music(this, changedSong -> {

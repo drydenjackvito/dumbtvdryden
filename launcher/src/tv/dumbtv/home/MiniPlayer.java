@@ -31,7 +31,7 @@ final class MiniPlayer extends View {
 
     MiniPlayer(Context c) {
         super(c);
-        w = Ui.dp(c, 380);
+        w = Ui.dp(c, 300);
         h = Ui.dp(c, 92);
         pad = Ui.dp(c, 14);
         artSize = h - 2 * pad;
