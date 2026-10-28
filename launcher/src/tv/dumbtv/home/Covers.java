@@ -117,48 +117,79 @@ final class Covers {
         label.setTextSize(h * 0.12f);
         CharSequence t = TextUtils.ellipsize(title, label, w - 2 * inset, TextUtils.TruncateAt.END);
         canvas.drawText(t, 0, t.length(), inset, h - inset, label);
-        if (it.state == TvInputManager.INPUT_STATE_CONNECTED) {
-            float r = Math.max(dotR, h * 0.03f);
-            led(canvas, w - r * 3.2f, r * 3.2f, r);
-        }
+        // Every input has its LED in its bezel: green when something is live on it, blue for
+        // AirPlay while something is cast, dark otherwise.
+        float r = Math.max(dotR, h * 0.03f);
+        led(canvas, w - r * 3.2f, r * 3.2f, r, light(it));
+    }
+
+    /** Set while AirPlay (or a cast from a phone) is starting or playing: its LED lights blue. */
+    static volatile boolean airplayOn;
+
+    /** Which light {@code it} shows: 0 off, 1 green, 2 blue. */
+    static int light(Item it) {
+        if (Item.AIRPLAY.equals(it.id)) return airplayOn ? 2 : 0;
+        return it.state == TvInputManager.INPUT_STATE_CONNECTED ? 1 : 0;
     }
 
     private final Paint bloom = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint socket = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint lens = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint flare = new Paint(Paint.ANTI_ALIAS_FLAG);
     private float ledFor = -1;
+    private int ledColour = -1;
+
+    /** Bloom, core, rim and beam colours for green (1) and blue (2). */
+    private static final int[][] HUES = {
+            {},
+            {0x38E05A, 0xFFB8FFC2, 0xFF33E461, 0xFF1BB546, 0xC8FFD0},
+            {0x3AA0FF, 0xFFBFE2FF, 0xFF3D9BFF, 0xFF1F6FE0, 0xC8E6FF},
+    };
 
     /**
-     * The "on" light, like a real LED set into the panel: a white-hot centre and vivid green,
-     * sitting in a small socket whose upper rim is in shade and whose lower rim catches light,
-     * with a tight green bloom; its flare is drawn over the panel by {@link #flare}.
+     * An LED set into the panel: a small socket whose upper rim is in shade and whose lower rim
+     * catches light, and in it either a dark lens (off) or a white-hot centre and vivid colour
+     * with a tight bloom (on); an on LED's flare is drawn over the panel by {@link #flare}.
      */
-    private void led(Canvas canvas, float x, float y, float r) {
+    private void led(Canvas canvas, float x, float y, float r, int on) {
         if (r != ledFor) {
             ledFor = r;
-            bloom.setShader(new android.graphics.RadialGradient(0, 0, r * 2.2f,
-                    new int[] {0x9938E05A, 0x3338E05A, 0x0038E05A}, new float[] {0f, 0.45f, 1f},
-                    android.graphics.Shader.TileMode.CLAMP));
-            dot.setShader(new android.graphics.RadialGradient(0, 0, r,
-                    new int[] {0xFFFFFFFF, 0xFFB8FFC2, 0xFF33E461, 0xFF1BB546}, new float[] {0f, 0.45f, 0.8f, 1f},
-                    android.graphics.Shader.TileMode.CLAMP));
+            ledColour = -1;
             // The socket: shade at the top of the hole, light along its bottom lip.
             socket.setShader(new android.graphics.LinearGradient(0, -r * 1.4f, 0, r * 1.4f,
                     new int[] {0x38000000, 0x14000000, 0x00FFFFFF, 0xE6FFFFFF}, new float[] {0f, 0.45f, 0.62f, 1f},
                     android.graphics.Shader.TileMode.CLAMP));
+            // Off: dark glass, a faint highlight up and to the left.
+            lens.setShader(new android.graphics.RadialGradient(-r * 0.35f, -r * 0.35f, r * 1.3f,
+                    new int[] {0xFF9A9AA2, 0xFF5E5E66, 0xFF3C3C42}, new float[] {0f, 0.45f, 1f},
+                    android.graphics.Shader.TileMode.CLAMP));
+        }
+        if (on > 0 && on != ledColour) {
+            ledColour = on;
+            int[] c = HUES[on];
+            bloom.setShader(new android.graphics.RadialGradient(0, 0, r * 2.2f,
+                    new int[] {0x99000000 | c[0], 0x33000000 | c[0], c[0]}, new float[] {0f, 0.45f, 1f},
+                    android.graphics.Shader.TileMode.CLAMP));
+            dot.setShader(new android.graphics.RadialGradient(0, 0, r,
+                    new int[] {0xFFFFFFFF, c[1], c[2], c[3]}, new float[] {0f, 0.45f, 0.8f, 1f},
+                    android.graphics.Shader.TileMode.CLAMP));
             flare.setShader(new android.graphics.LinearGradient(0, -r * 7, 0, r * 7,
-                    new int[] {0x0038E05A, 0x7038E05A, 0xB0C8FFD0, 0x7038E05A, 0x0038E05A},
+                    new int[] {c[0], 0x70000000 | c[0], 0xB0000000 | c[4], 0x70000000 | c[0], c[0]},
                     new float[] {0f, 0.38f, 0.5f, 0.62f, 1f}, android.graphics.Shader.TileMode.CLAMP));
         }
-        // Breathing: a slow 3 s swell of the flare, and a little of the bloom.
-        float t = (android.os.SystemClock.uptimeMillis() % 3000) / 3000f;
-        float breathe = 0.5f + 0.5f * (float) Math.sin(t * Math.PI * 2);
         canvas.save();
         canvas.translate(x, y);
         canvas.drawCircle(0, 0, r * 1.4f, socket);
-        bloom.setAlpha(Math.round(255 * (0.75f + 0.25f * breathe)));
-        canvas.drawCircle(0, 0, r * 2.2f, bloom);
-        canvas.drawCircle(0, 0, r, dot);
+        if (on == 0) {
+            canvas.drawCircle(0, 0, r, lens);
+        } else {
+            // Breathing: a slow 3 s swell of the flare, and a little of the bloom.
+            float t = (android.os.SystemClock.uptimeMillis() % 3000) / 3000f;
+            float breathe = 0.5f + 0.5f * (float) Math.sin(t * Math.PI * 2);
+            bloom.setAlpha(Math.round(255 * (0.75f + 0.25f * breathe)));
+            canvas.drawCircle(0, 0, r * 2.2f, bloom);
+            canvas.drawCircle(0, 0, r, dot);
+        }
         canvas.restore();
     }
 
@@ -168,9 +199,10 @@ final class Covers {
      * core inside wider fainter ones, so it feathers; it swells and fades with the LED's breath.
      */
     void flare(Canvas canvas, Item it, float w, float h) {
-        if (!glows(it)) return;
+        int on = light(it);
+        if (on == 0) return;
         float r = Math.max(dotR, h * 0.03f);
-        if (r != ledFor) return; // the face, drawn first, sets the shaders up
+        if (r != ledFor || on != ledColour) return; // the face, drawn first, sets the shaders up
         float t = (android.os.SystemClock.uptimeMillis() % 3000) / 3000f;
         float breathe = 0.5f + 0.5f * (float) Math.sin(t * Math.PI * 2);
         float strength = 0.25f + 0.75f * breathe;
@@ -185,9 +217,9 @@ final class Covers {
         canvas.restore();
     }
 
-    /** Whether {@code it} shows the "on" light, which breathes and so needs redrawing. */
+    /** Whether {@code it} shows a lit LED, which breathes and so needs redrawing. */
     static boolean glows(Item it) {
-        return it.state == TvInputManager.INPUT_STATE_CONNECTED;
+        return light(it) > 0;
     }
 
     /** The two gradients, made again only when the panel height changes. */

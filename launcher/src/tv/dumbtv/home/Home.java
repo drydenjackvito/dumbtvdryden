@@ -91,6 +91,41 @@ public final class Home extends Activity {
     private int wakeKey = -1;
     private LinearLayout home;
     private Shelf apps, inputs;
+    private TextView noSignal;
+    private static Home shown;
+
+    /** AirPlay's light changed (Covers.airplayOn): redraw the panels if they are on screen. */
+    static void lightsChanged() {
+        Home h = shown;
+        if (h != null && h.inputs != null) h.inputs.invalidate();
+    }
+
+    /** AirPlay playing, by its media session: its LED lights blue while it does. */
+    private final Runnable airplayWatch = new Runnable() {
+        @Override
+        public void run() {
+            boolean on = false;
+            try {
+                android.media.session.MediaSessionManager sm = (android.media.session.MediaSessionManager)
+                        getSystemService(Context.MEDIA_SESSION_SERVICE);
+                for (android.media.session.MediaController m
+                        : sm.getActiveSessions(new android.content.ComponentName(Home.this, Listener.class))) {
+                    if (!m.getPackageName().startsWith(AIRPLAY_PACKAGE)) continue;
+                    android.media.session.PlaybackState st = m.getPlaybackState();
+                    on |= st != null && (st.getState() == android.media.session.PlaybackState.STATE_PLAYING
+                            || st.getState() == android.media.session.PlaybackState.STATE_BUFFERING);
+                }
+            } catch (SecurityException ignored) {
+                // No notification access: AirPlay's light stays as it is.
+            }
+            if (on != Covers.airplayOn && !Lounge.casting) {
+                Covers.airplayOn = on;
+                lightsChanged();
+            }
+            ui.postDelayed(this, 2000);
+        }
+    };
+    private static final String AIRPLAY_PACKAGE = "com.apple.airplay";
     private TextView empty;
     private ScrollView page;
     private TextView pageTitle, pageCount;
@@ -159,6 +194,10 @@ public final class Home extends Activity {
         public void selected(Shelf shelf, Item item) {
             if (resumed && pageKind == null && greeted) {
                 preview.show(item, shelf.kind, cfg.get(Config.PREVIEW));
+                // An input with nothing on it: "No signal" where the greeting was.
+                boolean dead = Catalog.INPUTS.equals(shelf.kind) && !Item.AIRPLAY.equals(item.id)
+                        && item.state != android.media.tv.TvInputManager.INPUT_STATE_CONNECTED;
+                noSignal.setVisibility(dead ? View.VISIBLE : View.GONE);
             }
         }
     };
@@ -228,6 +267,9 @@ public final class Home extends Activity {
         registerReceiver(time, f);
         tick();
         greet();
+        shown = this;
+        ui.removeCallbacks(airplayWatch);
+        ui.post(airplayWatch);
         backFromDetour(); // after the setup above, which onPause undoes
         if (warming) {
             warming = false;
@@ -286,6 +328,7 @@ public final class Home extends Activity {
         greeting.setVisibility(pageKind == null ? View.VISIBLE : View.GONE);
         greeted = false;
         preview.stop();
+        noSignal.setVisibility(View.GONE);
         quiet(true);
     }
 
@@ -316,6 +359,8 @@ public final class Home extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        ui.removeCallbacks(airplayWatch);
+        if (shown == this) shown = null;
         resumed = false;
         preview.stop();
         unregisterReceiver(time);
@@ -463,6 +508,11 @@ public final class Home extends Activity {
         preview = new Preview(this);
         preview.setGlow(glow);
         root.addView(preview, new FrameLayout.LayoutParams(0, 0));
+        noSignal = Ui.text(this, 28, 0xFFB4B4BC, Ui.REGULAR);
+        noSignal.setText("No signal");
+        noSignal.setGravity(Gravity.CENTER);
+        noSignal.setVisibility(View.GONE);
+        root.addView(noSignal, new FrameLayout.LayoutParams(0, 0));
         greeting = Ui.text(this, 40, 0xFFB4B4BC, Ui.REGULAR);
         greeting.setLetterSpacing(-0.02f);
         greeting.setGravity(Gravity.CENTER);
@@ -478,16 +528,16 @@ public final class Home extends Activity {
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setClipChildren(false);
         bar.setClipToPadding(false);
-        bar.setPadding(gutter(), gutter(), gutter(), dp(10));
+        bar.setPadding(gutter(), dp(18), gutter(), dp(6)); // a slim bar: more room for the preview
         menuBtn = new IconButton(this, IconButton.MENU, "Menu");
         menuBtn.setOnClickListener(v -> mainMenu());
         bar.addView(menuBtn);
         TextView word = Ui.title(this, 32);
         word.setText(WORDMARK);
-        // 44 sp: the word, "y" included, about fills the buttons' height.
-        float wordSize = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 44,
+        // 34 sp: the word, "y" included, about fills the buttons' height.
+        float wordSize = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 34,
                 getResources().getDisplayMetrics());
-        LinearLayout.LayoutParams wordLp = centreInk(word, wordSize, WORDMARK, dp(52));
+        LinearLayout.LayoutParams wordLp = centreInk(word, wordSize, WORDMARK, dp(IconButton.SIZE_DP));
         wordLp.leftMargin = dp(12); // the same space as between the buttons
         bar.addView(word, wordLp);
         appsBtn = new IconButton(this, IconButton.APPS, "Apps");
@@ -503,7 +553,7 @@ public final class Home extends Activity {
         bar.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
         clock = Ui.text(this, 36, CLOCK, Ui.SEMIBOLD);
         clock.setLetterSpacing(-0.02f);
-        bar.addView(clock, centreInk(clock, wordSize, "0", dp(52)));
+        bar.addView(clock, centreInk(clock, wordSize, "0", dp(IconButton.SIZE_DP)));
         for (View b : new View[] {menuBtn, appsBtn, settingsBtn}) b.setId(View.generateViewId());
         column.addView(bar, new LinearLayout.LayoutParams(MATCH, WRAP));
 
@@ -602,6 +652,7 @@ public final class Home extends Activity {
             g.height = gh;
             g.topMargin = top;
             greeting.setLayoutParams(g);
+            noSignal.setLayoutParams(new FrameLayout.LayoutParams(g));
         }
     }
 
@@ -848,6 +899,7 @@ public final class Home extends Activity {
         pageKind = kind;
         pageOpener = opener;
         preview.stop();
+        noSignal.setVisibility(View.GONE);
         pageTitle.setText(Catalog.APPS.equals(kind) ? "Apps" : "Inputs");
         home.setVisibility(View.GONE);
         page.setVisibility(View.VISIBLE);

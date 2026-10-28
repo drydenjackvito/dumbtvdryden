@@ -73,6 +73,8 @@ final class Lounge {
 
     /** The player of the cast video, on the main thread. */
     private Player player;
+    /** A cast plays full screen (Theater): AirPlay's LED stays lit meanwhile. */
+    static volatile boolean casting;
     private String playingId, ctt, listId, index;
     private int lastState = -1;
     private long lastReport;
@@ -293,10 +295,14 @@ final class Lounge {
         } else if (Input.front != null) {
             Input.front.cast(videoId, atMs);
         } else {
-            app.startActivity(new Intent(app, Theater.class)
+            // AirPlay's LED lights blue on the home screen first, then the video takes over.
+            casting = true;
+            Covers.airplayOn = true;
+            Home.lightsChanged();
+            ui.postDelayed(() -> app.startActivity(new Intent(app, Theater.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     .putExtra(Theater.EXTRA_ID, videoId)
-                    .putExtra(Theater.EXTRA_AT, atMs));
+                    .putExtra(Theater.EXTRA_AT, atMs)), 700);
         }
     }
 
@@ -308,6 +314,11 @@ final class Lounge {
     void detach(Player p) {
         if (player != p) return;
         player = null;
+        if (casting) {
+            casting = false;
+            Covers.airplayOn = false;
+            Home.lightsChanged();
+        }
         if (playingId != null) send(nowPlaying(playingId, -1, -1, STATE_PAUSED));
         playingId = null;
     }

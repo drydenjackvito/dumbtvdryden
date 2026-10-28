@@ -19,13 +19,15 @@ final class IconButton extends View {
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF box = new RectF();
+    /** The top bar's height: the wordmark and clock match it. */
+    static final int SIZE_DP = 40;
     private final int size;
     private final float radius;
 
     IconButton(Context c, String kind, String label) {
         super(c);
-        size = Ui.dp(c, 52);
-        radius = Ui.dp(c, 16);
+        size = Ui.dp(c, SIZE_DP);
+        radius = Ui.dp(c, 12);
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeWidth(2.2f);
         stroke.setStrokeCap(Paint.Cap.ROUND);
