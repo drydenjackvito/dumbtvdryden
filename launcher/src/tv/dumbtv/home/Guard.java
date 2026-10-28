@@ -79,6 +79,25 @@ public final class Guard extends AccessibilityService {
         alarms.cancel(launch(c));
     }
 
+    /**
+     * Covers the screen with {@code look} (a picture of the home screen) for {@code holdMs}, then
+     * brings the home screen back: an app opened meanwhile (Spotify, so it is on the phone's
+     * Connect list after a boot) runs without being seen. False when the guard isn't running.
+     */
+    static boolean holdCover(android.graphics.Bitmap look, long holdMs, Runnable whenCovered) {
+        Guard g = running;
+        if (g == null || g.cover == null) return false;
+        g.handler.removeCallbacks(g.uncover);
+        g.cover.setBackground(new android.graphics.drawable.BitmapDrawable(g.getResources(), look));
+        g.cover.setVisibility(View.VISIBLE);
+        g.handler.postDelayed(g.uncover, holdMs + 4000); // whatever happens, not stuck covered
+        g.cover.post(() -> {
+            whenCovered.run();
+            g.handler.postDelayed(() -> home(g), holdMs);
+        });
+        return true;
+    }
+
     /** Called once our home window is on screen. */
     static void shown() {
         if (running != null) running.uncover();

@@ -77,6 +77,10 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   plays in the corner over a game (the window below), and full screen anywhere else (Theater);
   the phone's play, pause, seek, volume and stop work, and the phone follows what plays. This
   is YouTube's TV-linking service as SmartTube uses it (Lounge.java), unpublished by YouTube.
+- **Spotify Connect after a restart.** The TV is only on the phone's Spotify device list once
+  Spotify has run since the boot. A few seconds after the first boot's home screen, Tomboy
+  opens Spotify behind a picture of the home screen (the HOME guard's cover) and comes back
+  four seconds later, so nothing of it shows. Once a boot; only with Music over inputs on.
 - **SmartTube over a game.** ☰ on an input, pick a video in SmartTube, press Home: the
   input comes back with the same video in a corner, from where it was, played by YouTube's
   embedded player (its own picture, from the TV's hardware decoder, which shows beside the

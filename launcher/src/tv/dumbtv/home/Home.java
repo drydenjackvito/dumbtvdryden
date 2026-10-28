@@ -229,8 +229,54 @@ public final class Home extends Activity {
         tick();
         greet();
         backFromDetour(); // after the setup above, which onPause undoes
+        if (warming) {
+            warming = false;
+            ui.postDelayed(Guard::shown, 400); // back from Spotify's warm-up: lift the cover
+        } else {
+            ui.postDelayed(this::warmSpotify, 4000);
+        }
         wasAway = false;
     }
+
+    private boolean warming;
+
+    /**
+     * Once a boot: opens Spotify behind a picture of this screen and comes back, so the TV is on
+     * the phone's Spotify Connect list (it is only while Spotify has run since the boot). Nothing
+     * is seen of it: the guard's cover shows this screen as it was the whole time.
+     */
+    private void warmSpotify() {
+        if (!resumed) return;
+        if (!"on".equals(cfg.get(Config.MUSIC))) return;
+        int boot = android.provider.Settings.Global.getInt(getContentResolver(), "boot_count", -1);
+        if (boot < 0 || String.valueOf(boot).equals(cfg.get("spotify.warmed", ""))) return;
+        Intent spotify = getPackageManager().getLeanbackLaunchIntentForPackage(SPOTIFY);
+        if (spotify == null) spotify = getPackageManager().getLaunchIntentForPackage(SPOTIFY);
+        if (spotify == null) return;
+        View root = getWindow().getDecorView();
+        if (root.getWidth() == 0) return;
+        android.graphics.Bitmap look;
+        try {
+            look = android.graphics.Bitmap.createBitmap(root.getWidth(), root.getHeight(),
+                    android.graphics.Bitmap.Config.ARGB_8888);
+            root.draw(new android.graphics.Canvas(look));
+        } catch (RuntimeException | OutOfMemoryError e) {
+            return;
+        }
+        Intent open = spotify.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        cfg.set("spotify.warmed", String.valueOf(boot));
+        warming = Guard.holdCover(look, SPOTIFY_WARM_MS, () -> {
+            try {
+                startActivity(open, android.app.ActivityOptions.makeCustomAnimation(this, 0, 0).toBundle());
+            } catch (ActivityNotFoundException | SecurityException e) {
+                warming = false;
+            }
+        });
+        android.util.Log.i("dumbtv", "spotify warm-up: " + (warming ? "started" : "no guard"));
+    }
+
+    private static final String SPOTIFY = "com.spotify.tv.android";
+    private static final long SPOTIFY_WARM_MS = 4000;
 
     /** Shows the greeting; the preview waits behind it until the first press. */
     private void greet() {
@@ -335,7 +381,7 @@ public final class Home extends Activity {
         boolean twice = homeFromAway != 0 && now - homeFromAway < HOME_TWICE_MS;
         // Away means hidden for a while, in another app; Amazon's home flashing over this one on
         // the second press hides it only for a moment.
-        homeFromAway = !twice && wasAway ? now : 0;
+        homeFromAway = !twice && wasAway && !warming ? now : 0; // not armed by the warm-up's return
         wasAway = false;
         if (twice && backToGame) {
             Intent back = Input.last(this);
