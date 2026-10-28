@@ -60,6 +60,13 @@ final class VideoWindow extends FrameLayout {
         // Off the screen: it only has to play, for the sound and the clock. Its player draws on a
         // surface of its own (square, placed by the page), which showed behind the rounded window.
         own = "youtube".equals(Config.get(c).get(Config.VIDEO_PICTURE));
+        if (own) {
+            // YouTube caps the quality by its player's size, and here the page measured 240 CSS
+            // pixels wide (480p at most). It lays out 1920 wide instead (see embedPage), scaled
+            // down to fit; the picture is the player's own, so the scaling costs nothing.
+            ws.setUseWideViewPort(true);
+            ws.setLoadWithOverviewMode(true);
+        }
         if (!own) web.setTranslationX(-100_000);
         addView(web, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         // The picture, the thumbnail before it, and the rounded corners, drawn together in a layer
@@ -173,6 +180,10 @@ final class VideoWindow extends FrameLayout {
             }
             String html = new String(out.toByteArray(), "UTF-8");
             String script = "<script>" + script() + "</script>";
+            if (own) {
+                html = html.replaceAll("(?i)<meta[^>]*name=[\"']?viewport[^>]*>", "");
+                script = "<meta name=\"viewport\" content=\"width=1920\">" + script;
+            }
             int head = html.toLowerCase(java.util.Locale.ROOT).indexOf("<head>");
             html = head < 0 ? script + html : html.substring(0, head + 6) + script + html.substring(head + 6);
             java.util.Map<String, String> headers = new java.util.HashMap<>();
