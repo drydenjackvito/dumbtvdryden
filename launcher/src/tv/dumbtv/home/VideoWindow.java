@@ -44,6 +44,10 @@ final class VideoWindow extends FrameLayout {
         ws.setJavaScriptEnabled(true);
         ws.setMediaPlaybackRequiresUserGesture(false);
         ws.setDomStorageEnabled(true);
+        // The page lays out 1280 CSS pixels wide (see embedPage), scaled down to fit: YouTube picks
+        // the quality from its player's size, and at this window's size it chose 240p.
+        ws.setUseWideViewPort(true);
+        ws.setLoadWithOverviewMode(true);
         web.setWebViewClient(new WebViewClient() {
             @Override
             public android.webkit.WebResourceResponse shouldInterceptRequest(WebView v,
@@ -56,7 +60,12 @@ final class VideoWindow extends FrameLayout {
         // The page plays on underneath for the sound and the clock, all but invisible: its own
         // picture is black (see NativeVideo), and its square corners would show at the rounded ones.
         web.setAlpha(0.01f);
-        addView(web, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        // Kept clear of the corners: the player can draw on a surface of its own, which the
+        // transparency above does not reach.
+        FrameLayout.LayoutParams wl = new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+        int in = Math.round(radius);
+        wl.setMargins(in, in, in, in);
+        addView(web, wl);
         // The picture, the thumbnail before it, and the rounded corners, drawn together in a layer
         // of their own that holds transparency: the corners cleared there let the game show
         // through. (The video view ignores a rounded clip, and this window is not see-through
@@ -166,7 +175,9 @@ final class VideoWindow extends FrameLayout {
                 for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);
             }
             String html = new String(out.toByteArray(), "UTF-8");
-            String script = "<script>" + script() + "</script>";
+            // Its own viewports out, a wide one in (see setUseWideViewPort).
+            html = html.replaceAll("(?i)<meta[^>]*name=[\"']?viewport[^>]*>", "");
+            String script = "<meta name=\"viewport\" content=\"width=1280\"><script>" + script() + "</script>";
             int head = html.toLowerCase(java.util.Locale.ROOT).indexOf("<head>");
             html = head < 0 ? script + html : html.substring(0, head + 6) + script + html.substring(head + 6);
             java.util.Map<String, String> headers = new java.util.HashMap<>();

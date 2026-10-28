@@ -145,7 +145,8 @@
     var n = Date.now();
     if (v && n - lastLog > 3000) {
       lastLog = n;
-      log('t=' + v.currentTime.toFixed(1) + ' paused=' + v.paused + ' codec=' + codec + ' sent=' + sent);
+      log('t=' + v.currentTime.toFixed(1) + ' paused=' + v.paused + ' codec=' + codec + ' sent=' + sent
+        + ' page=' + innerWidth + 'x' + innerHeight + ' dpr=' + devicePixelRatio);
     }
   }, 200);
 })();
