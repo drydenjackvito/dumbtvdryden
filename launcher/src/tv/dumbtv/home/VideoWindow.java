@@ -25,6 +25,8 @@ final class VideoWindow extends FrameLayout {
 
     private final WebView web;
     private final NativeVideo decoder = new NativeVideo();
+    private final android.widget.ImageView poster;
+    private int posterFor;
     private final Ended ended;
     private boolean ready;
 
@@ -61,6 +63,11 @@ final class VideoWindow extends FrameLayout {
         addView(screen, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         // Its corners cut out on top of everything: cleared pixels in this window, through which
         // the game shows.
+        // The video's thumbnail until its first frame is drawn, instead of black.
+        poster = new android.widget.ImageView(c);
+        poster.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        addView(poster, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        decoder.onFirstFrame = () -> post(() -> poster.animate().alpha(0f).setDuration(300).start());
         addView(new Corners(c, radius), new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         setVisibility(GONE);
     }
@@ -74,6 +81,7 @@ final class VideoWindow extends FrameLayout {
     void play(String id, long atMs, int volume) {
         ready = false;
         decoder.reset();
+        showPoster(id);
         startS = atMs / 1000;
         this.volume = volume;
         String url = "https://www.youtube.com/embed/" + id + "?autoplay=1&controls=0&rel=0&fs=0"
@@ -82,6 +90,34 @@ final class VideoWindow extends FrameLayout {
         headers.put("Referer", REFERER); // YouTube refuses embeds that come from no site at all
         web.loadUrl(url, headers);
         setVisibility(VISIBLE);
+    }
+
+    /** Fetches the video's thumbnail (4:3 with bars, cropped to the window) and shows it until the video does. */
+    private void showPoster(String id) {
+        int ticket = ++posterFor;
+        poster.animate().cancel();
+        poster.setImageDrawable(null);
+        poster.setAlpha(1f);
+        new Thread(() -> {
+            android.graphics.Bitmap b = null;
+            for (String name : new String[] {"sddefault.jpg", "hqdefault.jpg"}) {
+                try {
+                    java.net.HttpURLConnection c = (java.net.HttpURLConnection)
+                            new java.net.URL("https://i.ytimg.com/vi/" + id + "/" + name).openConnection();
+                    c.setConnectTimeout(5000);
+                    c.setReadTimeout(5000);
+                    if (c.getResponseCode() == 200) {
+                        try (java.io.InputStream in = c.getInputStream()) {
+                            b = android.graphics.BitmapFactory.decodeStream(in);
+                        }
+                    }
+                } catch (java.io.IOException | RuntimeException ignored) {
+                }
+                if (b != null) break;
+            }
+            android.graphics.Bitmap shown = b;
+            if (shown != null) post(() -> { if (ticket == posterFor) poster.setImageBitmap(shown); });
+        }, "tomboy-poster").start();
     }
 
     private static final String REFERER = "https://tv.dumbtv.home/";

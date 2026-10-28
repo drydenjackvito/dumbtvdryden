@@ -47,6 +47,9 @@ final class NativeVideo implements TextureView.SurfaceTextureListener {
     private volatile boolean running;
     private Thread thread;
     private int decoded, drawn, late, skips;
+    /** Told once a new video's first frame is on screen (from the decoding thread). */
+    volatile Runnable onFirstFrame;
+    private volatile boolean firstShown;
     private String codecName = "-";
 
     /** A frame as YouTube appended it; {@code t} in microseconds. */
@@ -82,6 +85,7 @@ final class NativeVideo implements TextureView.SurfaceTextureListener {
 
     /** Forgets the video: a new one is coming. */
     void reset() {
+        firstShown = false;
         synchronized (chunks) {
             chunks.clear();
         }
@@ -295,6 +299,11 @@ final class NativeVideo implements TextureView.SurfaceTextureListener {
                         codec.releaseOutputBuffer(pending, System.nanoTime() + Math.max(0, pendingPts - now) * 1000);
                         pending = -1;
                         drawn++;
+                        if (!firstShown) {
+                            firstShown = true;
+                            Runnable r = onFirstFrame;
+                            if (r != null) r.run();
+                        }
                     }
                 }
 
