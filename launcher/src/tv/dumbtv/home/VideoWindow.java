@@ -3,9 +3,7 @@ package tv.dumbtv.home;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Color;
-import android.graphics.Outline;
 import android.view.View;
-import android.view.ViewOutlineProvider;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -37,14 +35,9 @@ final class VideoWindow extends FrameLayout {
         int w = Ui.dp(c, 300 * scale), h = Math.round(w * 9f / 16f);
         setLayoutParams(new FrameLayout.LayoutParams(w, h));
         float radius = Ui.dp(c, 12 * scale);
-        setOutlineProvider(new ViewOutlineProvider() {
-            @Override
-            public void getOutline(View v, Outline o) {
-                o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), radius);
-            }
-        });
-        setClipToOutline(true);
-        setBackgroundColor(Color.BLACK);
+        // Rounded by drawing, not by clipping: the video view ignores a rounded clip, and the
+        // corner mask on top (Corners) must be free to draw outside it.
+        setBackground(Ui.round(Color.BLACK, radius));
         web = new WebView(c);
         web.setBackgroundColor(Color.BLACK);
         web.setFocusable(false);
@@ -66,8 +59,8 @@ final class VideoWindow extends FrameLayout {
         android.view.TextureView screen = new android.view.TextureView(c);
         screen.setSurfaceTextureListener(decoder);
         addView(screen, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-        // The video view ignores the rounded clip, so its corners are cut out on top of it: cleared
-        // pixels in this window, through which the game shows.
+        // Its corners cut out on top of everything: cleared pixels in this window, through which
+        // the game shows.
         addView(new Corners(c, radius), new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         setVisibility(GONE);
     }
