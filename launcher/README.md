@@ -73,15 +73,12 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   One Home from there goes straight back to the input (Options › Home twice › Home
   screen turns that off too).
 - **SmartTube over a game.** ☰ on an input, pick a video in SmartTube, press Home: the
-  input comes back with the same video in a corner, from where it was (YouTube's embedded
-  player, sized and placed like the music card). The TV's hardware decoder draws on the
-  video plane the HDMI input holds, so the picture is decoded in software instead:
-  res/raw/tube.js steers YouTube to VP9 up to 360p (or 480p: Options › Video quality) and hands each compressed frame and the
-  player's clock to NativeVideo.java, which decodes them with Android's own software VP9
-  decoder into a TextureView. The player's own video plays on unseen for the sound. SmartTube itself can't float over an HDMI
-  input on this TV: Fire OS frees its memory and closes it as the input's picture starts.
-  ⏯ pauses, ⏩ ⏪ skip 10 s, channel ▲ ▼ set its volume (the ceiling), Back closes it.
-  Some videos can't be embedded; those say so and close.
+  input comes back with the same video in a corner, from where it was, played by YouTube's
+  embedded player (its own picture, from the TV's hardware decoder, which shows beside the
+  input). Options › Video quality asks it for 360p to 1080p (720p by default). Options ›
+  Video picture › Tomboy's decoder instead decodes the video in software (NativeVideo.java,
+  VP9 up to 480p) into a rounded window; slower, for TVs where the player's own picture
+  does not show. ⏯ pauses, ⏩ ⏪ skip 10 s, channel ▲ ▼ set its volume, Back closes it.
 - **Home twice.** From another app, pressing Home twice within a few seconds goes straight
   back to the input last shown: pick music in Spotify, Home Home, and the game is back with
   the music over it. Options › Home twice › Home screen turns it off.

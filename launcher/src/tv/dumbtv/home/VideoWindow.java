@@ -46,10 +46,6 @@ final class VideoWindow extends FrameLayout {
         ws.setJavaScriptEnabled(true);
         ws.setMediaPlaybackRequiresUserGesture(false);
         ws.setDomStorageEnabled(true);
-        // The page lays out 1280 CSS pixels wide (see embedPage), scaled down to fit: YouTube picks
-        // the quality from its player's size, and at this window's size it chose 240p.
-        ws.setUseWideViewPort(true);
-        ws.setLoadWithOverviewMode(true);
         web.setWebViewClient(new WebViewClient() {
             @Override
             public android.webkit.WebResourceResponse shouldInterceptRequest(WebView v,
@@ -176,9 +172,7 @@ final class VideoWindow extends FrameLayout {
                 for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);
             }
             String html = new String(out.toByteArray(), "UTF-8");
-            // Its own viewports out, a wide one in (see setUseWideViewPort).
-            html = html.replaceAll("(?i)<meta[^>]*name=[\"']?viewport[^>]*>", "");
-            String script = "<meta name=\"viewport\" content=\"width=1280\"><script>" + script() + "</script>";
+            String script = "<script>" + script() + "</script>";
             int head = html.toLowerCase(java.util.Locale.ROOT).indexOf("<head>");
             html = head < 0 ? script + html : html.substring(0, head + 6) + script + html.substring(head + 6);
             java.util.Map<String, String> headers = new java.util.HashMap<>();
@@ -202,8 +196,15 @@ final class VideoWindow extends FrameLayout {
                 tube = "";
             }
         }
-        boolean sharp = "480".equals(Config.get(getContext()).get(Config.VIDEO_QUALITY));
-        return tube.replace("__SEND__", own ? "false" : "true").replace("__START__", String.valueOf(startS)).replace("__VOL__", String.valueOf(volume))
+        int q;
+        try {
+            q = Integer.parseInt(Config.get(getContext()).get(Config.VIDEO_QUALITY));
+        } catch (NumberFormatException e) {
+            q = 720;
+        }
+        boolean sharp = q >= 480; // Tomboy's decoder goes no higher than 480p
+        return tube.replace("__SEND__", own ? "false" : "true").replace("__START__", String.valueOf(startS))
+                .replace("__VOL__", String.valueOf(volume)).replace("__QUALITY__", String.valueOf(q))
                 .replace("__MAXW__", sharp ? "854" : "640").replace("__MAXH__", sharp ? "480" : "360");
     }
 

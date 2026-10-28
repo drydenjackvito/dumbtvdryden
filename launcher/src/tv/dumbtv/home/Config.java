@@ -82,14 +82,14 @@ final class Config {
             new String[] {"br", "bl", "tr", "tl"},
             new String[] {"Bottom right", "Bottom left", "Top right", "Top left"});
     /** The video carried over a game: decoded in software, so sharper costs more of the TV. */
-    static final Choice VIDEO_QUALITY = new Choice("video.quality", "Video quality", "360",
-            new String[] {"360", "480"},
-            new String[] {"360p", "480p"});
+    static final Choice VIDEO_QUALITY = new Choice("video.quality", "Video quality", "720",
+            new String[] {"360", "480", "720", "1080"},
+            new String[] {"360p", "480p", "720p", "1080p"});
     /**
      * Who draws the video carried over a game: Tomboy, decoding it in software (works wherever
      * the TV's hardware decoder can't show beside the input), or YouTube's own player.
      */
-    static final Choice VIDEO_PICTURE = new Choice("video.picture", "Video picture", "tomboy",
+    static final Choice VIDEO_PICTURE = new Choice("video.picture", "Video picture", "youtube",
             new String[] {"tomboy", "youtube"},
             new String[] {"Tomboy's decoder", "YouTube's player"});
     /** HOME pressed twice from another app (Spotify, say) goes back to the input last shown. */

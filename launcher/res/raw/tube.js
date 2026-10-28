@@ -7,39 +7,52 @@
 (function () {
   if (window.__tb) return;
   window.__tb = 1;
-  var SEND = __SEND__, START = __START__, VOL = __VOL__, MAX_W = __MAXW__, MAX_H = __MAXH__;
+  var SEND = __SEND__, START = __START__, VOL = __VOL__, MAX_W = __MAXW__, MAX_H = __MAXH__, QUALITY = __QUALITY__;
   var sent = 0;
   function log(s) { try { Tomboy.log(s); } catch (e) {} }
 
-  // 1. Steer YouTube to VP9 (Android's software decoder's codec) at the quality set in Options
-  // (360p or 480p): the TV's processor is mostly taken next to an HDMI input.
-  function ok(t) {
-    t = String(t || '');
-    if (/av01|avc1|avc3|hev1|hvc1/i.test(t)) return false;
-    var m = /width=(\d+)/.exec(t);
-    if (m && +m[1] > MAX_W) return false;
-    m = /height=(\d+)/.exec(t);
-    return !(m && +m[1] > MAX_H);
-  }
-  ['MediaSource', 'ManagedMediaSource', 'WebKitMediaSource'].forEach(function (n) {
-    var M = window[n];
-    if (!M || !M.isTypeSupported) return;
-    var o = M.isTypeSupported.bind(M);
-    M.isTypeSupported = function (t) { return /^video/i.test(t) && !ok(t) ? false : o(t); };
-  });
-  var cpt = HTMLMediaElement.prototype.canPlayType;
-  HTMLMediaElement.prototype.canPlayType = function (t) {
-    return /^video/i.test(t) && !ok(t) ? '' : cpt.call(this, t);
-  };
-  if (navigator.mediaCapabilities && navigator.mediaCapabilities.decodingInfo) {
-    var di = navigator.mediaCapabilities.decodingInfo.bind(navigator.mediaCapabilities);
-    navigator.mediaCapabilities.decodingInfo = function (c) {
-      var v = c && c.video;
-      if (v && (!ok(v.contentType) || v.width > MAX_W || v.height > MAX_H)) {
-        return Promise.resolve({ supported: false, smooth: false, powerEfficient: false });
-      }
-      return di(c);
+  // 1. The quality. With YouTube's own player (decoded by the TV's hardware), ask it for the
+  // quality set in Options: stored as its own preference before it starts, and set again on the
+  // player once it is there. For Tomboy's decoder (software), steer YouTube to VP9 at 480p or
+  // less: the TV's processor is mostly taken next to an HDMI input.
+  var LABEL = { 1080: 'hd1080', 720: 'hd720', 480: 'large', 360: 'medium' }[QUALITY] || 'hd720';
+  if (!SEND) {
+    try {
+      var now0 = Date.now();
+      localStorage.setItem('yt-player-quality', JSON.stringify({
+        data: JSON.stringify({ quality: QUALITY, previousQuality: QUALITY }),
+        expiration: now0 + 30 * 86400000, creation: now0 }));
+    } catch (e) { log('quality preference ' + e); }
+  } else {
+    function ok(t) {
+      t = String(t || '');
+      if (/av01|avc1|avc3|hev1|hvc1/i.test(t)) return false;
+      var m = /width=(\d+)/.exec(t);
+      if (m && +m[1] > MAX_W) return false;
+      m = /height=(\d+)/.exec(t);
+      return !(m && +m[1] > MAX_H);
+    }
+    ['MediaSource', 'ManagedMediaSource', 'WebKitMediaSource'].forEach(function (n) {
+      var M = window[n];
+      if (!M || !M.isTypeSupported) return;
+      var o = M.isTypeSupported.bind(M);
+      M.isTypeSupported = function (t) { return /^video/i.test(t) && !ok(t) ? false : o(t); };
+    });
+    var cpt = HTMLMediaElement.prototype.canPlayType;
+    HTMLMediaElement.prototype.canPlayType = function (t) {
+      return /^video/i.test(t) && !ok(t) ? '' : cpt.call(this, t);
     };
+    if (navigator.mediaCapabilities && navigator.mediaCapabilities.decodingInfo) {
+      var di = navigator.mediaCapabilities.decodingInfo.bind(navigator.mediaCapabilities);
+      navigator.mediaCapabilities.decodingInfo = function (c) {
+        var v = c && c.video;
+        if (v && (!ok(v.contentType) || v.width > MAX_W || v.height > MAX_H)) {
+          return Promise.resolve({ supported: false, smooth: false, powerEfficient: false });
+        }
+        return di(c);
+      };
+    }
+
   }
 
   // 2. The video bytes as YouTube appends them: WebM, split into frames, each passed to Tomboy.
@@ -139,13 +152,23 @@
         if (START > 3 && v.currentTime < START - 3) v.currentTime = START;
       });
       setInterval(function () { tellClock(v); }, 250);
+      if (!SEND) {
+        var tries = 0, set = setInterval(function () {
+          var p = document.getElementById('movie_player');
+          if (p && p.setPlaybackQualityRange) { p.setPlaybackQualityRange(LABEL, LABEL); log('quality asked: ' + LABEL); }
+          if (++tries > 10) clearInterval(set);
+        }, 1000);
+      }
     }
     var er = document.querySelector('.ytp-error');
     if (er && er.offsetParent && !err) { err = true; log('error: ' + er.innerText.slice(0, 80)); Tomboy.error(150); }
     var n = Date.now();
     if (v && n - lastLog > 3000) {
       lastLog = n;
+      var mp = document.getElementById('movie_player');
       log('t=' + v.currentTime.toFixed(1) + ' paused=' + v.paused + ' codec=' + codec + ' sent=' + sent
+        + ' size=' + v.videoWidth + 'x' + v.videoHeight
+        + ' quality=' + (mp && mp.getPlaybackQuality ? mp.getPlaybackQuality() : '-')
         + ' page=' + innerWidth + 'x' + innerHeight + ' dpr=' + devicePixelRatio);
     }
   }, 200);
