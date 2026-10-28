@@ -59,13 +59,10 @@ final class VideoWindow extends FrameLayout {
         web.addJavascriptInterface(this, "Tomboy");
         // The page plays on underneath for the sound and the clock, all but invisible: its own
         // picture is black (see NativeVideo), and its square corners would show at the rounded ones.
-        web.setAlpha(0.01f);
-        // Kept clear of the corners: the player can draw on a surface of its own, which the
-        // transparency above does not reach.
-        FrameLayout.LayoutParams wl = new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
-        int in = Math.round(radius);
-        wl.setMargins(in, in, in, in);
-        addView(web, wl);
+        // Off the screen: it only has to play, for the sound and the clock. Its player draws on a
+        // surface of its own (square, placed by the page), which showed behind the rounded window.
+        web.setTranslationX(-100_000);
+        addView(web, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         // The picture, the thumbnail before it, and the rounded corners, drawn together in a layer
         // of their own that holds transparency: the corners cleared there let the game show
         // through. (The video view ignores a rounded clip, and this window is not see-through
