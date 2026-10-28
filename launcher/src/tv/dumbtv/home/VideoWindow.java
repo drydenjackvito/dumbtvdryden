@@ -283,6 +283,23 @@ final class VideoWindow extends FrameLayout {
         decoder.add((long) t, key, android.util.Base64.decode(base64, android.util.Base64.NO_WRAP));
     }
 
+    /**
+     * The video's own shape: with YouTube's player, the window takes it (same width, its height),
+     * so the picture fills it with no bars. A tall video (a Short) stops at a square window.
+     */
+    @JavascriptInterface
+    public void shape(int w, int h) {
+        if (!own || w <= 0 || h <= 0) return;
+        post(() -> {
+            android.view.ViewGroup.LayoutParams lp = getLayoutParams();
+            if (lp == null) return;
+            int height = Math.min(Math.round(lp.width * (float) h / w), lp.width);
+            if (lp.height == height) return;
+            lp.height = height;
+            setLayoutParams(lp);
+        });
+    }
+
     /** The page's player clock, in seconds. */
     @JavascriptInterface
     public void clock(double seconds, boolean paused) {

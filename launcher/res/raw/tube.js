@@ -133,7 +133,11 @@
     css.textContent = '.ytp-chrome-top,.ytp-chrome-bottom,.ytp-pause-overlay,.ytp-gradient-top,'
       + '.ytp-gradient-bottom,.ytp-watermark,.ytp-large-play-button,.ytp-spinner,'
       + '.ytp-cued-thumbnail-overlay,.ytp-paid-content-overlay{display:none!important}'
-      + 'html,body{background:#000!important}';
+      + 'html,body{background:#000!important}'
+      // YouTube's own picture fills the page exactly: Tomboy shapes the window to the video (see
+      // shape below), so no bars, and no seam where the picture's hole and surface miss by a pixel.
+      + (SEND ? '' : '.html5-main-video{position:fixed!important;left:0!important;top:0!important;'
+        + 'width:100vw!important;height:100vh!important;object-fit:fill!important}');
     document.head.appendChild(css);
   }
   var looked = setInterval(function () {
@@ -151,6 +155,20 @@
       v.addEventListener('loadedmetadata', function () {
         if (START > 3 && v.currentTime < START - 3) v.currentTime = START;
       });
+      // The video's shape, for the window: told again when it changes (quality, an ad).
+      var shapeW = 0, shapeH = 0;
+      function shape() {
+        if (v.videoWidth && (v.videoWidth !== shapeW || v.videoHeight !== shapeH)) {
+          shapeW = v.videoWidth;
+          shapeH = v.videoHeight;
+          Tomboy.shape(shapeW, shapeH);
+          // A tall video (a Short) gets a square window: kept whole, not stretched.
+          if (!SEND) v.style.setProperty('object-fit', shapeH > shapeW ? 'contain' : 'fill', 'important');
+        }
+      }
+      v.addEventListener('loadedmetadata', shape);
+      v.addEventListener('resize', shape);
+      setInterval(shape, 1000);
       setInterval(function () { tellClock(v); }, 250);
       if (!SEND) {
         var tries = 0, set = setInterval(function () {
