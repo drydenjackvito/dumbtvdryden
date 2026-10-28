@@ -183,6 +183,7 @@ public final class Home extends Activity {
         registerReceiver(screenOn, new IntentFilter(Intent.ACTION_SCREEN_ON));
         Keeper.start(this);
         Ceiling.listen(this); // remembers music apps' audio sessions for the ceiling over inputs
+        Tube.watch(this); // notes SmartTube's video, for carrying it over a game
         if (tv != null) tv.registerCallback(inputWatch, ui);
         firstApps(catalog, times);
         allInputs = Catalog.inputs(this, tv);

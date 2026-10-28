@@ -66,12 +66,13 @@ public final class Input extends Activity {
     private boolean carryVideo() {
         boolean detour = getIntent().getBooleanExtra(EXTRA_DETOUR, false);
         getIntent().removeExtra(EXTRA_DETOUR); // once: not again on coming back to this screen
-        if (!detour || music == null) return false;
-        Music.Clip clip = music.clip();
+        if (!detour) return false;
+        Music.Clip clip = music == null ? null : music.clip();
+        if (clip == null) clip = Tube.last(); // SmartTube may have let its session go already
         android.util.Log.i("dumbtv", "carry video: " + (clip == null ? "none" : clip.id + " at " + clip.atMs));
         if (clip == null) return false;
         try {
-            clip.from.getTransportControls().pause();
+            if (clip.from != null) clip.from.getTransportControls().pause();
         } catch (RuntimeException ignored) {
         }
         ceilingDb = Integer.parseInt(Config.get(this).get(Ceiling.KEY, "6"));
