@@ -160,6 +160,7 @@ final class NativeVideo implements TextureView.SurfaceTextureListener {
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture st, int w, int h) {
+        Log.i("dumbtv", "native video: window " + w + "x" + h + " px");
         surface = new Surface(st);
         start();
     }
@@ -278,6 +279,11 @@ final class NativeVideo implements TextureView.SurfaceTextureListener {
                 // Show the decoded frame when it is due; drop it when it came too late.
                 if (pending < 0) {
                     int out = codec.dequeueOutputBuffer(info, 5000);
+                    if (out == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                        MediaFormat of = codec.getOutputFormat();
+                        Log.i("dumbtv", "native video: video " + of.getInteger(MediaFormat.KEY_WIDTH) + "x"
+                                + of.getInteger(MediaFormat.KEY_HEIGHT));
+                    }
                     if (out >= 0) {
                         decoded++;
                         lastOut = info.presentationTimeUs;

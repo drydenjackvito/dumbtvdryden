@@ -37,9 +37,6 @@ final class VideoWindow extends FrameLayout {
         int w = Ui.dp(c, 300 * scale), h = Math.round(w * 9f / 16f);
         setLayoutParams(new FrameLayout.LayoutParams(w, h));
         float radius = Ui.dp(c, 12 * scale);
-        // Rounded by drawing, not by clipping: the video view ignores a rounded clip, and the
-        // corner mask on top (Corners) must be free to draw outside it.
-        setBackground(Ui.round(Color.BLACK, radius));
         web = new WebView(c);
         web.setBackgroundColor(Color.BLACK);
         web.setFocusable(false);
@@ -56,19 +53,26 @@ final class VideoWindow extends FrameLayout {
         });
         web.setWebChromeClient(new WebChromeClient());
         web.addJavascriptInterface(this, "Tomboy");
+        // The page plays on underneath for the sound and the clock, all but invisible: its own
+        // picture is black (see NativeVideo), and its square corners would show at the rounded ones.
+        web.setAlpha(0.01f);
         addView(web, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-        // Over the page: the picture, decoded by Android's software decoder (see NativeVideo).
+        // The picture, the thumbnail before it, and the rounded corners, drawn together in a layer
+        // of their own that holds transparency: the corners cleared there let the game show
+        // through. (The video view ignores a rounded clip, and this window is not see-through
+        // where it is cleared directly.)
+        FrameLayout stage = new FrameLayout(c);
+        stage.setBackground(Ui.round(Color.BLACK, radius));
+        stage.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         android.view.TextureView screen = new android.view.TextureView(c);
         screen.setSurfaceTextureListener(decoder);
-        addView(screen, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-        // Its corners cut out on top of everything: cleared pixels in this window, through which
-        // the game shows.
-        // The video's thumbnail until its first frame is drawn, instead of black.
+        stage.addView(screen, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         poster = new android.widget.ImageView(c);
         poster.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-        addView(poster, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        stage.addView(poster, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         decoder.onFirstFrame = () -> post(() -> poster.animate().alpha(0f).setDuration(300).start());
-        addView(new Corners(c, radius), new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        stage.addView(new Corners(c, radius), new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        addView(stage, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         setVisibility(GONE);
     }
 
