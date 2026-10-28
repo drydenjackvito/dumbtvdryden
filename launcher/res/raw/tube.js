@@ -127,7 +127,7 @@
 
   // 3. The player: its clock to Tomboy, its overlays hidden, its errors reported.
   var told = false, err = false, lastLog = 0;
-  function tellClock(v) { Tomboy.clock(v.currentTime, v.paused || v.seeking); }
+  function tellClock(v) { Tomboy.clock(v.currentTime, v.paused || v.seeking || v.ended, v.duration || 0); }
   function setup() {
     var css = document.createElement('style');
     css.textContent = '.ytp-chrome-top,.ytp-chrome-bottom,.ytp-pause-overlay,.ytp-gradient-top,'
@@ -150,7 +150,7 @@
       v.volume = VOL / 100;
       v.play();
       Tomboy.ready();
-      ['timeupdate', 'play', 'playing', 'pause', 'seeking', 'seeked', 'ratechange', 'waiting']
+      ['timeupdate', 'play', 'playing', 'pause', 'seeking', 'seeked', 'ratechange', 'waiting', 'ended']
         .forEach(function (e) { v.addEventListener(e, function () { tellClock(v); }); });
       v.addEventListener('loadedmetadata', function () {
         if (START > 3 && v.currentTime < START - 3) v.currentTime = START;

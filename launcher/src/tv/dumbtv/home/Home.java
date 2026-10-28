@@ -184,6 +184,7 @@ public final class Home extends Activity {
         Keeper.start(this);
         Ceiling.listen(this); // remembers music apps' audio sessions for the ceiling over inputs
         Tube.watch(this); // notes SmartTube's video, for carrying it over a game
+        Lounge.get(this).start(); // a screen the YouTube app can cast to (Options › Link a phone)
         if (tv != null) tv.registerCallback(inputWatch, ui);
         firstApps(catalog, times);
         allInputs = Catalog.inputs(this, tv);

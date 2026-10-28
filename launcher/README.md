@@ -72,6 +72,11 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   now-playing screen; with nothing playing, SmartTube (any build: it is found by name).
   One Home from there goes straight back to the input (Options › Home twice › Home
   screen turns that off too).
+- **Cast from the YouTube app.** Options › Link a phone shows a TV code; in the YouTube app,
+  Settings › Watch on TV › Enter TV code. Tomboy then shows up in the phone's cast list. A cast
+  plays in the corner over a game (the window below), and full screen anywhere else (Theater);
+  the phone's play, pause, seek, volume and stop work, and the phone follows what plays. This
+  is YouTube's TV-linking service as SmartTube uses it (Lounge.java), unpublished by YouTube.
 - **SmartTube over a game.** ☰ on an input, pick a video in SmartTube, press Home: the
   input comes back with the same video in a corner, from where it was, played by YouTube's
   embedded player (its own picture, from the TV's hardware decoder, which shows beside the

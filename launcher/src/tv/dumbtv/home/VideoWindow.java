@@ -17,7 +17,7 @@ import android.widget.FrameLayout;
  * its memory and closes it the moment the input's picture starts), and starts where SmartTube
  * had got to. Part of this screen's own window, it lives as long as the screen does.
  */
-final class VideoWindow extends FrameLayout {
+final class VideoWindow extends FrameLayout implements Lounge.Player {
     interface Ended {
         /** The player gave up: the video may not be embedded (YouTube's errors 101, 150, 152, 153). */
         void failed(int code);
@@ -27,17 +27,28 @@ final class VideoWindow extends FrameLayout {
     private final NativeVideo decoder = new NativeVideo();
     private final android.widget.ImageView poster;
     /** YouTube's player shows its own picture (Options › Video picture). */
-    private final boolean own;
+    private final boolean own, full;
+    /** The video cast from a phone, if this plays one (see Lounge). */
+    private String castId;
+    /** Called when the phone stops the cast. */
+    Runnable onCastStop;
     private int posterFor;
     private final Ended ended;
     private boolean ready;
 
-    @SuppressLint("SetJavaScriptEnabled")
     VideoWindow(Context c, float scale, Ended ended) {
+        this(c, scale, ended, false);
+    }
+
+    /** {@code full}: the whole screen (a cast with no game on, see Theater), YouTube's player. */
+    @SuppressLint("SetJavaScriptEnabled")
+    VideoWindow(Context c, float scale, Ended ended, boolean full) {
         super(c);
         this.ended = ended;
+        this.full = full;
         int w = Ui.dp(c, 300 * scale), h = Math.round(w * 9f / 16f);
-        setLayoutParams(new FrameLayout.LayoutParams(w, h));
+        setLayoutParams(full ? new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                : new FrameLayout.LayoutParams(w, h));
         float radius = Ui.dp(c, 12 * scale);
         web = new WebView(c);
         web.setBackgroundColor(Color.BLACK);
@@ -59,7 +70,7 @@ final class VideoWindow extends FrameLayout {
         // picture is black (see NativeVideo), and its square corners would show at the rounded ones.
         // Off the screen: it only has to play, for the sound and the clock. Its player draws on a
         // surface of its own (square, placed by the page), which showed behind the rounded window.
-        own = "youtube".equals(Config.get(c).get(Config.VIDEO_PICTURE));
+        own = full || "youtube".equals(Config.get(c).get(Config.VIDEO_PICTURE));
         if (own) {
             // YouTube caps the quality by its player's size, and here the page measured 240 CSS
             // pixels wide (480p at most). It lays out 1920 wide instead (see embedPage), scaled
@@ -237,6 +248,10 @@ final class VideoWindow extends FrameLayout {
     }
 
     void close() {
+        if (castId != null) {
+            castId = null;
+            Lounge.get(getContext()).detach(this);
+        }
         decoder.reset();
         web.loadUrl("about:blank");
         setVisibility(GONE);
@@ -289,7 +304,7 @@ final class VideoWindow extends FrameLayout {
      */
     @JavascriptInterface
     public void shape(int w, int h) {
-        if (!own || w <= 0 || h <= 0) return;
+        if (!own || full || w <= 0 || h <= 0) return;
         post(() -> {
             android.view.ViewGroup.LayoutParams lp = getLayoutParams();
             if (lp == null) return;
@@ -300,10 +315,51 @@ final class VideoWindow extends FrameLayout {
         });
     }
 
-    /** The page's player clock, in seconds. */
+    /** The page's player clock, in seconds; its length too, for a phone casting to it. */
     @JavascriptInterface
-    public void clock(double seconds, boolean paused) {
+    public void clock(double seconds, boolean paused, double duration) {
         decoder.clock(seconds, paused);
+        if (castId != null) post(() -> Lounge.get(getContext()).progress(this, seconds, duration, paused));
+    }
+
+    // ---- A video cast from a phone (Lounge) ----
+
+    /** Plays {@code id}, cast from a phone, from {@code atMs}; the phone then controls it. */
+    void cast(String id, long atMs, int volume) {
+        castId = id;
+        Lounge.get(getContext()).attach(this);
+        play(id, atMs, volume);
+    }
+
+    @Override
+    public void castLoad(String videoId, long atMs) {
+        cast(videoId, atMs, volume);
+    }
+
+    @Override
+    public void castPlay() {
+        js("var v=window.__v;if(v)v.play();");
+    }
+
+    @Override
+    public void castPause() {
+        js("var v=window.__v;if(v)v.pause();");
+    }
+
+    @Override
+    public void castSeek(double seconds) {
+        js("var v=window.__v;if(v)v.currentTime=" + Math.max(0, seconds) + ";");
+    }
+
+    @Override
+    public void castVolume(int v) {
+        volume(v);
+    }
+
+    @Override
+    public void castStop() {
+        close();
+        if (onCastStop != null) onCastStop.run();
     }
 
     @JavascriptInterface

@@ -52,6 +52,26 @@ public final class Input extends Activity {
     private VideoWindow video;
     /** Set by HOME coming back from an app Menu opened: carry SmartTube's video over. */
     static final String EXTRA_DETOUR = "detour";
+    /** The input screen in front, for a video cast from a phone to land in its corner (Lounge). */
+    static Input front;
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        front = this;
+    }
+
+    @Override
+    protected void onPause() {
+        if (front == this) front = null;
+        super.onPause();
+    }
+
+    /** A video cast from a phone: into the corner, over the game. */
+    void cast(String videoId, long atMs) {
+        ceilingDb = Integer.parseInt(Config.get(this).get(Ceiling.KEY, "6"));
+        video.cast(videoId, atMs, videoVolume());
+    }
     private final Runnable hidePlayer = () -> player.conceal();
     private static final long PLAYER_MS = 5000;
     /** Options › Mini-player › Always: the card stays while there is music. */

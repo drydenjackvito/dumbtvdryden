@@ -47,6 +47,7 @@ public final class Options extends Activity {
 
         for (Config.Choice c : Config.CHOICES) list.addView(choice(c));
         list.addView(gap());
+        list.addView(action("Link a phone (YouTube app)", this::linkPhone));
         list.addView(action("Apps on home screen", () -> pick(Catalog.APPS)));
         list.addView(action("Inputs on home screen", () -> pick(Catalog.INPUTS)));
         list.addView(action("Reset order, names and hidden panels", this::reset));
@@ -116,6 +117,29 @@ public final class Options extends Activity {
         cfg.set(c.key, c.values[((i + by) % n + n) % n]);
         refresh();
         return true;
+    }
+
+    /**
+     * Shows a TV code for the YouTube app (Settings › Watch on TV › Enter TV code). Once linked,
+     * Tomboy is in the phone's cast list: a cast plays in the corner over a game, or full screen.
+     */
+    private void linkPhone() {
+        AlertDialog d = new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle("Link a phone")
+                .setMessage("Getting a TV code…")
+                .setPositiveButton("Done", null)
+                .show();
+        new Thread(() -> {
+            String code = Lounge.get(this).pairingCode();
+            runOnUiThread(() -> {
+                if (!d.isShowing()) return;
+                d.setMessage(code == null
+                        ? "Couldn't get a code from YouTube. Check the TV's internet and try again."
+                        : "TV code:  " + code + "\n\nOn your phone, in the YouTube app: Settings › Watch on TV › "
+                        + "Enter TV code. Then cast with the cast button: over a game the video plays in the "
+                        + "corner, anywhere else full screen.");
+            });
+        }, "tomboy-pairing").start();
     }
 
     private View action(String text, Runnable run) {
