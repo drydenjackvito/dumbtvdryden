@@ -26,6 +26,8 @@ final class VideoWindow extends FrameLayout {
     private final WebView web;
     private final NativeVideo decoder = new NativeVideo();
     private final android.widget.ImageView poster;
+    /** YouTube's player shows its own picture (Options › Video picture). */
+    private final boolean own;
     private int posterFor;
     private final Ended ended;
     private boolean ready;
@@ -61,7 +63,8 @@ final class VideoWindow extends FrameLayout {
         // picture is black (see NativeVideo), and its square corners would show at the rounded ones.
         // Off the screen: it only has to play, for the sound and the clock. Its player draws on a
         // surface of its own (square, placed by the page), which showed behind the rounded window.
-        web.setTranslationX(-100_000);
+        own = "youtube".equals(Config.get(c).get(Config.VIDEO_PICTURE));
+        if (!own) web.setTranslationX(-100_000);
         addView(web, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         // The picture, the thumbnail before it, and the rounded corners, drawn together in a layer
         // of their own that holds transparency: the corners cleared there let the game show
@@ -87,7 +90,8 @@ final class VideoWindow extends FrameLayout {
         stage.addView(poster, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         decoder.onFirstFrame = () -> post(() -> poster.animate().alpha(0f).setDuration(300).start());
         stage.addView(new Corners(c, radius), new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-        addView(stage, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        // Options › Video picture › YouTube's player: the page shows its own, and this stays out.
+        if (!own) addView(stage, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         setVisibility(GONE);
     }
 
@@ -199,7 +203,7 @@ final class VideoWindow extends FrameLayout {
             }
         }
         boolean sharp = "480".equals(Config.get(getContext()).get(Config.VIDEO_QUALITY));
-        return tube.replace("__START__", String.valueOf(startS)).replace("__VOL__", String.valueOf(volume))
+        return tube.replace("__SEND__", own ? "false" : "true").replace("__START__", String.valueOf(startS)).replace("__VOL__", String.valueOf(volume))
                 .replace("__MAXW__", sharp ? "854" : "640").replace("__MAXH__", sharp ? "480" : "360");
     }
 

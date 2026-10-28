@@ -7,7 +7,7 @@
 (function () {
   if (window.__tb) return;
   window.__tb = 1;
-  var START = __START__, VOL = __VOL__, MAX_W = __MAXW__, MAX_H = __MAXH__;
+  var SEND = __SEND__, START = __START__, VOL = __VOL__, MAX_W = __MAXW__, MAX_H = __MAXH__;
   var sent = 0;
   function log(s) { try { Tomboy.log(s); } catch (e) {} }
 
@@ -86,7 +86,7 @@
         if (rel & 0x8000) rel -= 0x10000;
         var data = b.subarray(q + 3, s + sz.v);
         var key = ID === 0xA3 ? !!(b[q + 2] & 0x80) : vp9Key(data);
-        Tomboy.chunk(b64(data), Math.round((clusterTime + rel) * tick) + off, key);
+        if (SEND) Tomboy.chunk(b64(data), Math.round((clusterTime + rel) * tick) + off, key);
         sent++;
       }
       p = s + sz.v;

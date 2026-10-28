@@ -85,6 +85,13 @@ final class Config {
     static final Choice VIDEO_QUALITY = new Choice("video.quality", "Video quality", "360",
             new String[] {"360", "480"},
             new String[] {"360p", "480p"});
+    /**
+     * Who draws the video carried over a game: Tomboy, decoding it in software (works wherever
+     * the TV's hardware decoder can't show beside the input), or YouTube's own player.
+     */
+    static final Choice VIDEO_PICTURE = new Choice("video.picture", "Video picture", "tomboy",
+            new String[] {"tomboy", "youtube"},
+            new String[] {"Tomboy's decoder", "YouTube's player"});
     /** HOME pressed twice from another app (Spotify, say) goes back to the input last shown. */
     static final Choice HOME_TWICE = new Choice("home.twice", "Home twice", "game",
             new String[] {"game", "off"},
@@ -94,7 +101,7 @@ final class Config {
             new String[] {"Automatic", "The TV's app", "dumbtv home"});
 
     static final Choice[] CHOICES = {TILES, ORDER, APPS_SHELF, INPUTS, PREVIEW, MUSIC, MINI_SHOW, MINI_SIZE,
-            MINI_PLACE, VIDEO_QUALITY, HOME_TWICE, SWITCH};
+            MINI_PLACE, VIDEO_QUALITY, VIDEO_PICTURE, HOME_TWICE, SWITCH};
 
     private static Config instance;
 
