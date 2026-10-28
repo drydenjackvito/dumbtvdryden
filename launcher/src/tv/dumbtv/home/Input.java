@@ -272,6 +272,7 @@ public final class Input extends Activity {
     @SuppressWarnings("deprecation") // the AudioFocusRequest replacement is Android 8+, Fire OS 6 is 7.1
     protected void onStart() {
         super.onStart();
+        Lounge.get(this).want(true); // a cast target while an input is on screen
         showName();
         if (view == null || id == null) {
             status(FAILED);
@@ -309,6 +310,7 @@ public final class Input extends Activity {
     @Override
     @SuppressWarnings("deprecation")
     protected void onStop() {
+        Lounge.get(this).want(false);
         ui.removeCallbacksAndMessages(null);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if (music != null) music.stop();

@@ -73,10 +73,11 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   One Home from there goes straight back to the input (Options › Home twice › Home
   screen turns that off too).
 - **Cast from the YouTube app.** Options › Link a phone shows a TV code; in the YouTube app,
-  Settings › Watch on TV › Enter TV code. Tomboy then shows up in the phone's cast list. A cast
-  plays in the corner over a game (the window below), and full screen anywhere else (Theater);
-  the phone's play, pause, seek, volume and stop work, and the phone follows what plays. This
-  is YouTube's TV-linking service as SmartTube uses it (Lounge.java), unpublished by YouTube.
+  Settings › Watch on TV › Enter TV code. While an input is on screen, Tomboy shows up in the
+  phone's cast list, and a cast plays in the input's corner (the window below); the phone's
+  play, pause, seek, volume and stop work, and the phone follows what plays. Off an input,
+  Tomboy leaves the list, so the phone's YouTube app uses AirPlay to the TV as before. This is
+  YouTube's TV-linking service as SmartTube uses it (Lounge.java), unpublished by YouTube.
 - **Spotify Connect after a restart.** The TV is only on the phone's Spotify device list once
   Spotify has run since the boot. A few seconds after the first boot's home screen, Tomboy
   opens Spotify behind a picture of the home screen (the HOME guard's cover) and comes back

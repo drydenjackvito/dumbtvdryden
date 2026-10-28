@@ -136,8 +136,8 @@ public final class Options extends Activity {
                 d.setMessage(code == null
                         ? "Couldn't get a code from YouTube. Check the TV's internet and try again."
                         : "TV code:  " + code + "\n\nOn your phone, in the YouTube app: Settings › Watch on TV › "
-                        + "Enter TV code. Then cast with the cast button: over a game the video plays in the "
-                        + "corner, anywhere else full screen.");
+                        + "Enter TV code. Tomboy then shows up in the cast list while an input (your console) is "
+                        + "open, and a cast plays in its corner. Elsewhere, use AirPlay as usual.");
             });
         }, "tomboy-pairing").start();
     }

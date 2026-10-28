@@ -30,8 +30,8 @@ import java.util.concurrent.Executors;
  * Settings › Watch on TV › Enter TV code, as SmartTube uses it (MediaServiceCore's LoungeService).
  *
  * Linked once with a TV code (Options › Link a phone), Tomboy shows up in the phone's cast list
- * while this keeps a long-poll connection open. A cast plays in the corner over a game, or full
- * screen anywhere else ({@link Theater}); the phone's play, pause, seek, volume and stop reach
+ * while this keeps a long-poll connection open, which it does only while an input is on screen
+ * (elsewhere the phone's own AirPlay is the way to the TV). A cast plays in the input's corner; the phone's play, pause, seek, volume and stop reach
  * the player, and the player's state is reported back so the phone's controls follow it.
  *
  * The protocol is YouTube's own and unpublished; it has been stable for years, but may change.
@@ -69,6 +69,7 @@ final class Lounge {
     private volatile String screenId, deviceId, token, sid, gsid;
     private volatile long tokenAt;
     private volatile HttpURLConnection listening;
+    private boolean wanted;
     private int ofs;
 
     /** The player of the cast video, on the main thread. */
@@ -126,6 +127,9 @@ final class Lounge {
     private void listen() {
         for (;;) {
             try {
+                synchronized (this) {
+                    while (!wanted) wait(); // offline until an input is on screen
+                }
                 ids();
                 if (!tokenFresh()) refreshToken();
                 session();
@@ -212,6 +216,35 @@ final class Lounge {
     private void reconnect() {
         HttpURLConnection c = listening;
         if (c != null) c.disconnect();
+    }
+
+    /**
+     * Online as a cast target only while an input is on screen (the input screen calls this):
+     * elsewhere the phone's YouTube app doesn't see Tomboy, and its AirPlay works as before.
+     */
+    void want(boolean on) {
+        synchronized (this) {
+            if (wanted == on) return;
+            wanted = on;
+            notifyAll();
+        }
+        Log.i(TAG, "cast: " + (on ? "online" : "offline"));
+        if (!on) {
+            String s = sid, g = gsid;
+            out.execute(() -> {
+                // Tell YouTube the session is over, so the phone drops Tomboy at once.
+                if (s != null && g != null && token != null) {
+                    try {
+                        Map<String, String> f = new LinkedHashMap<>();
+                        f.put("count", "0");
+                        post(BASE + "&RID=1337&TYPE=terminate" + ident() + "&SID=" + enc(s) + "&gsessionid=" + enc(g), f);
+                    } catch (IOException e) {
+                        Log.w(TAG, "cast: terminate " + e);
+                    }
+                }
+                reconnect();
+            });
+        }
     }
 
     /** The commands in a chunk: "123\n[[0,["c","…"]]\n,[1,["S","…"]]\n]". */
