@@ -64,6 +64,15 @@ final class VideoWindow extends FrameLayout {
         FrameLayout stage = new FrameLayout(c);
         stage.setBackground(Ui.round(Color.BLACK, radius));
         stage.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        // The layer itself is clipped to the rounded rectangle as it is drawn into the window: by
+        // then the video is part of an ordinary image, which a rounded clip does cut.
+        stage.setOutlineProvider(new android.view.ViewOutlineProvider() {
+            @Override
+            public void getOutline(View v, android.graphics.Outline o) {
+                o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), radius);
+            }
+        });
+        stage.setClipToOutline(true);
         android.view.TextureView screen = new android.view.TextureView(c);
         screen.setSurfaceTextureListener(decoder);
         stage.addView(screen, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
