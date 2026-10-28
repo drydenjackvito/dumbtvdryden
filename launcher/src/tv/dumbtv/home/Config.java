@@ -81,6 +81,10 @@ final class Config {
     static final Choice MINI_PLACE = new Choice("mini.place", "Mini-player position", "br",
             new String[] {"br", "bl", "tr", "tl"},
             new String[] {"Bottom right", "Bottom left", "Top right", "Top left"});
+    /** The video carried over a game: decoded in software, so sharper costs more of the TV. */
+    static final Choice VIDEO_QUALITY = new Choice("video.quality", "Video quality", "360",
+            new String[] {"360", "480"},
+            new String[] {"360p", "480p"});
     /** HOME pressed twice from another app (Spotify, say) goes back to the input last shown. */
     static final Choice HOME_TWICE = new Choice("home.twice", "Home twice", "game",
             new String[] {"game", "off"},
@@ -90,7 +94,7 @@ final class Config {
             new String[] {"Automatic", "The TV's app", "dumbtv home"});
 
     static final Choice[] CHOICES = {TILES, ORDER, APPS_SHELF, INPUTS, PREVIEW, MUSIC, MINI_SHOW, MINI_SIZE,
-            MINI_PLACE, HOME_TWICE, SWITCH};
+            MINI_PLACE, VIDEO_QUALITY, HOME_TWICE, SWITCH};
 
     private static Config instance;
 

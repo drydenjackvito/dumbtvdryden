@@ -66,6 +66,9 @@ final class VideoWindow extends FrameLayout {
         android.view.TextureView screen = new android.view.TextureView(c);
         screen.setSurfaceTextureListener(decoder);
         addView(screen, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        // The video view ignores the rounded clip, so its corners are cut out on top of it: cleared
+        // pixels in this window, through which the game shows.
+        addView(new Corners(c, radius), new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         setVisibility(GONE);
     }
 
@@ -145,7 +148,9 @@ final class VideoWindow extends FrameLayout {
                 tube = "";
             }
         }
-        return tube.replace("__START__", String.valueOf(startS)).replace("__VOL__", String.valueOf(volume));
+        boolean sharp = "480".equals(Config.get(getContext()).get(Config.VIDEO_QUALITY));
+        return tube.replace("__START__", String.valueOf(startS)).replace("__VOL__", String.valueOf(volume))
+                .replace("__MAXW__", sharp ? "854" : "640").replace("__MAXH__", sharp ? "480" : "360");
     }
 
     boolean showing() {
@@ -178,6 +183,32 @@ final class VideoWindow extends FrameLayout {
 
     private void js(String call) {
         if (ready) web.evaluateJavascript(call, null);
+    }
+
+    /** Clears the four corners outside the rounded rectangle. */
+    private static final class Corners extends View {
+        private final android.graphics.Paint clear = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.Path path = new android.graphics.Path();
+        private final float radius;
+
+        Corners(Context c, float radius) {
+            super(c);
+            this.radius = radius;
+            clear.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR));
+        }
+
+        @Override
+        protected void onSizeChanged(int w, int h, int ow, int oh) {
+            path.reset();
+            path.setFillType(android.graphics.Path.FillType.EVEN_ODD);
+            path.addRect(0, 0, w, h, android.graphics.Path.Direction.CW);
+            path.addRoundRect(new android.graphics.RectF(0, 0, w, h), radius, radius, android.graphics.Path.Direction.CW);
+        }
+
+        @Override
+        protected void onDraw(android.graphics.Canvas canvas) {
+            canvas.drawPath(path, clear);
+        }
     }
 
     /** A compressed frame, as the page caught it: {@code t} in microseconds. */

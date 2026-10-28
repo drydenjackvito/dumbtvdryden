@@ -7,12 +7,12 @@
 (function () {
   if (window.__tb) return;
   window.__tb = 1;
-  var START = __START__, VOL = __VOL__, MAX_W = 640, MAX_H = 360;
+  var START = __START__, VOL = __VOL__, MAX_W = __MAXW__, MAX_H = __MAXH__;
   var sent = 0;
   function log(s) { try { Tomboy.log(s); } catch (e) {} }
 
-  // 1. Steer YouTube to VP9 (Android's software decoder's codec) at 360p or less: the TV's
-  // processor is mostly taken next to an HDMI input.
+  // 1. Steer YouTube to VP9 (Android's software decoder's codec) at the quality set in Options
+  // (360p or 480p): the TV's processor is mostly taken next to an HDMI input.
   function ok(t) {
     t = String(t || '');
     if (/av01|avc1|avc3|hev1|hvc1/i.test(t)) return false;

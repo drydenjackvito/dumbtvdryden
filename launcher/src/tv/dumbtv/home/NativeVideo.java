@@ -59,10 +59,23 @@ final class NativeVideo implements TextureView.SurfaceTextureListener {
         }
     }
 
-    /** The player's clock, in seconds, as of now. */
+    /**
+     * The player's clock, in seconds, as of now. While playing on, a reading close to where this
+     * clock already is only nudges it: the readings come late by varying amounts, and following
+     * each one would show frames unevenly.
+     */
     void clock(double seconds, boolean paused) {
+        long at = SystemClock.elapsedRealtimeNanos();
+        if (clockKnown && !this.paused && !paused) {
+            double predicted = clockS + (at - clockAt) / 1e9, off = seconds - predicted;
+            if (Math.abs(off) < 0.15) {
+                clockS = predicted + off * 0.1;
+                clockAt = at;
+                return;
+            }
+        }
         clockS = seconds;
-        clockAt = SystemClock.elapsedRealtime();
+        clockAt = at;
         this.paused = paused;
         clockKnown = true;
     }
@@ -77,7 +90,7 @@ final class NativeVideo implements TextureView.SurfaceTextureListener {
     }
 
     private long nowUs() {
-        double s = clockS + (paused ? 0 : (SystemClock.elapsedRealtime() - clockAt) / 1000.0);
+        double s = clockS + (paused ? 0 : (SystemClock.elapsedRealtimeNanos() - clockAt) / 1e9);
         return (long) (s * 1e6);
     }
 
@@ -191,7 +204,7 @@ final class NativeVideo implements TextureView.SurfaceTextureListener {
         MediaCodec codec;
         try {
             codec = MediaCodec.createByCodecName(name);
-            MediaFormat f = MediaFormat.createVideoFormat(MIME, 640, 360);
+            MediaFormat f = MediaFormat.createVideoFormat(MIME, 854, 480);
             codec.configure(f, surface, null, 0);
             codec.start();
         } catch (java.io.IOException | RuntimeException e) {
@@ -276,8 +289,10 @@ final class NativeVideo implements TextureView.SurfaceTextureListener {
                         codec.releaseOutputBuffer(pending, false);
                         pending = -1;
                         late++;
-                    } else if (pendingPts <= now + 8_000) {
-                        codec.releaseOutputBuffer(pending, true);
+                    } else if (pendingPts <= now + 40_000) {
+                        // Handed over a little early with the time it is due: the screen shows it
+                        // on the refresh that time falls in, evenly spaced.
+                        codec.releaseOutputBuffer(pending, System.nanoTime() + Math.max(0, pendingPts - now) * 1000);
                         pending = -1;
                         drawn++;
                     }
