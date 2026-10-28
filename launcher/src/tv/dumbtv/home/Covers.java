@@ -226,7 +226,8 @@ final class Covers {
     private void shade(boolean live, float h) {
         if (h == shadedFor) return;
         shadedFor = h;
-        liveFill.setShader(new android.graphics.LinearGradient(0, 0, 0, h, 0xFFFFFFFF, 0xFFF0F0F4,
+        // Off-white rather than white at the top, so the white focus glow shows against it.
+        liveFill.setShader(new android.graphics.LinearGradient(0, 0, 0, h, 0xFFF3F3F6, 0xFFEAEAEF,
                 android.graphics.Shader.TileMode.CLAMP));
         idle.setShader(new android.graphics.LinearGradient(0, 0, 0, h, 0xFFEBEBEF, 0xFFDEDEE4,
                 android.graphics.Shader.TileMode.CLAMP));

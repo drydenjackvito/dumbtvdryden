@@ -214,6 +214,11 @@ final class Shelf extends View {
         invalidate();
     }
 
+    /** How far below this view's top the panels start (room for the focus glow above them). */
+    int panelTop() {
+        return Math.round(top);
+    }
+
     @Override
     protected void onMeasure(int widthSpec, int heightSpec) {
         setMeasuredDimension(MeasureSpec.getSize(widthSpec), Math.round(top + coverH + reflect));

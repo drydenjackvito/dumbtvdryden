@@ -616,8 +616,11 @@ public final class Home extends Activity {
         for (View s : new View[] {apps, inputs}) {
             if (s != null && s.getVisibility() == View.VISIBLE && first == null) first = s;
         }
-        int top = bar.getBottom() + dp(6);
-        int bottom = first == null ? 0 : topIn(first) - dp(10);
+        // The same gap above and below: from the buttons' bottom edge, and to the panels' top edge
+        // (not the bar's or the shelf's, which have padding and room for the glow).
+        int gap = dp(14);
+        int top = bar.getBottom() - bar.getPaddingBottom() + gap;
+        int bottom = first == null ? 0 : topIn(first) + ((Shelf) first).panelTop() - gap;
         int h = bottom - top;
         int w = Math.min(Math.round(h * 16f / 9f), root.getWidth() - 2 * gutter());
         h = Math.round(w * 9f / 16f);
