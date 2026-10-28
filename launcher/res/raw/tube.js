@@ -150,6 +150,15 @@
       v.volume = VOL / 100;
       v.play();
       Tomboy.ready();
+      // The video over (not an ad before it): Tomboy closes the window.
+      var over = false;
+      v.addEventListener('ended', function () {
+        var mp = document.getElementById('movie_player');
+        if (over || (mp && mp.classList && mp.classList.contains('ad-showing'))) return;
+        if (mp && mp.getPlayerState && mp.getPlayerState() !== 0) return; // 0: ended
+        over = true;
+        Tomboy.ended();
+      });
       ['timeupdate', 'play', 'playing', 'pause', 'seeking', 'seeked', 'ratechange', 'waiting', 'ended']
         .forEach(function (e) { v.addEventListener(e, function () { tellClock(v); }); });
       v.addEventListener('loadedmetadata', function () {

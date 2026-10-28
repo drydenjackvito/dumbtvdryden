@@ -367,6 +367,16 @@ final class VideoWindow extends FrameLayout implements Lounge.Player {
         android.util.Log.i("dumbtv", "video: " + what);
     }
 
+    /** The video played to its end: the window goes, and a full-screen cast closes. */
+    @JavascriptInterface
+    public void ended() {
+        post(() -> {
+            if (!showing()) return;
+            android.util.Log.i("dumbtv", "video: ended");
+            castStop();
+        });
+    }
+
     @JavascriptInterface
     public void ready() {
         post(() -> ready = true);
