@@ -5,8 +5,9 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
 
 - **Plain Java and Android views.** No AndroidX, Kotlin, Compose, Play Services or
   any other library.
-- **Network for one thing only.** `INTERNET` is there for YouTube's embedded player,
-  used only for a SmartTube video carried over a game; nothing else goes online.
+- **Network for two things only.** `INTERNET` is there for YouTube's embedded player
+  (a video over a game, or cast from a phone) and for Untitled's website (below);
+  nothing else goes online.
 - **Two normal permissions on Fire OS 7 and 8.** `MODIFY_AUDIO_SETTINGS` (the music
   ceiling) and `INTERNET` (the video above), both granted at install with no prompt.
   It also declares three (usage access, task order, boot completed), each limited to
@@ -17,7 +18,7 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
 
 - **Top bar.** ☰, "Tomboy" (`Home.WORDMARK`), then **Apps** (every app as a grid)
   and **Settings** (Fire TV's settings) at the left; the clock in light grey at the
-  right. ☰ opens a menu: Options and Amazon's home screen. The margin round the
+  right. ☰ opens a menu: Untitled, Options and Amazon's home screen. The margin round the
   screen (28 dp) is the same at the top, the sides and under the panels.
 - **Panels.** Nothing is selected when the home screen comes up; the first press on the
   remote (except ▲, which goes to the top bar) only wakes it. The selected panel glows
@@ -82,6 +83,14 @@ bar, a live preview, and a row of sliding panels. It shows your HDMI inputs, and
   Spotify has run since the boot. A few seconds after the first boot's home screen, Tomboy
   opens Spotify behind a picture of the home screen (the HOME guard's cover) and comes back
   four seconds later, so nothing of it shows. Once a boot; only with Music over inputs on.
+- **Untitled.** ☰ › Untitled opens untitled.stream full screen. The arrows move a
+  pointer (faster when held), OK clicks, pushing the pointer at the top or bottom edge
+  scrolls, BACK goes back a page and then leaves, ☰ goes to Untitled's start page. Sign
+  in once with the on-screen keyboard; Tomboy keeps the cookies. Tomboy plays the page
+  itself (`Radio.java`), so the music carries on over a game with the card, the media
+  keys, the ceiling (the page's own volume) and ☰ back to Untitled, as Spotify does. It
+  reads the song from the site's Media Session, so it can break if Untitled changes
+  its site.
 - **SmartTube over a game.** ☰ on an input, pick a video in SmartTube, press Home: the
   input comes back with the same video in a corner, from where it was, played by YouTube's
   embedded player (its own picture, from the TV's hardware decoder, which shows beside the
@@ -292,6 +301,9 @@ Delete both to stop.
 | `src/.../Greetings.java` | picks the greeting for the time of day from greetings.txt |
 | `src/.../Music.java` | the playing music app: song, art, play, pause, skip |
 | `src/.../Ceiling.java` | the music's volume ceiling over inputs: an equalizer on its audio session |
+| `src/.../Radio.java` | Untitled's website played in the background, as a media session |
+| `src/.../Untitled.java` | Untitled's website full screen, with a pointer for the remote |
+| `res/raw/untitled.js` | reports the site's song and state; takes the buttons and the ceiling |
 | `src/.../MiniPlayer.java` | the music card over an input |
 | `src/.../Listener.java` | the notification access that music control needs |
 | `src/.../Glow.java` | the coloured glow round the preview |

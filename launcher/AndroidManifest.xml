@@ -11,7 +11,8 @@
          permission: granted at install, no prompt. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
-    <!-- The YouTube player for a SmartTube video carried over a game (VideoWindow). A normal
+    <!-- The YouTube player for a video carried over a game (VideoWindow), and Untitled's website
+         (Radio). A normal
          permission: granted at install, no prompt. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -69,6 +70,15 @@
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
             android:screenOrientation="landscape"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|uiMode" />
+
+        <activity
+            android:name=".Untitled"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape"
+            android:windowSoftInputMode="adjustResize"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|uiMode" />
 
         <activity

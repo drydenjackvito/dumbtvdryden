@@ -68,6 +68,11 @@ final class Ceiling {
 
     /** Puts the ceiling, {@code db} below full (0 to FLOOR_DB), on {@code pkg}'s music. */
     void apply(String pkg, int db) {
+        if (Radio.capIfMine(pkg, db)) { // Untitled, played by Tomboy: its page turns itself down
+            release();
+            this.pkg = null;
+            return;
+        }
         this.pkg = pkg;
         this.db = db;
         Integer session;
